@@ -1,12 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query'
+import { RouterProvider } from 'react-router-dom'
+
 import { queryClient } from '@lib/apis'
+import { router } from '@app/router'
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <h1 className="text-3xl font-bold text-blue-600">Hello, React!</h1>
-      </div>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   )
 }
