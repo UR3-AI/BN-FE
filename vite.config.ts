@@ -2,37 +2,33 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
 import path from "path";
+import type { Connect, Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vite";
+
+const mockSpaFallback = (): Plugin => ({
+  name: "mock-spa-fallback",
+  configureServer(server: ViteDevServer) {
+    server.middlewares.use(((req: Connect.IncomingMessage, _res, next) => {
+      const url = req.url ?? "";
+      const isAsset =
+        url.startsWith("/@") ||
+        url.startsWith("/src") ||
+        url.startsWith("/node_modules") ||
+        url.includes(".");
+
+      if (!isAsset) {
+        req.url = "/mock.html";
+      }
+      next();
+    }) as Connect.NextHandleFunction);
+  },
+});
 
 export default defineConfig(({ mode }) => {
   const isMock = mode === "mock";
 
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      ...(isMock
-        ? [
-            {
-              name: "mock-spa-fallback",
-              configureServer(server: { middlewares: { use: (fn: (req: { url?: string }, _res: unknown, next: () => void) => void) => void } }) {
-                server.middlewares.use((req, _res, next) => {
-                  if (
-                    req.url &&
-                    !req.url.startsWith("/@") &&
-                    !req.url.startsWith("/src") &&
-                    !req.url.startsWith("/node_modules") &&
-                    !req.url.includes(".")
-                  ) {
-                    req.url = "/mock.html";
-                  }
-                  next();
-                });
-              },
-            },
-          ]
-        : []),
-    ],
+    plugins: [react(), tailwindcss(), ...(isMock ? [mockSpaFallback()] : [])],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
