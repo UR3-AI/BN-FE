@@ -5,17 +5,26 @@ import { api } from "@lib/apis/axios";
 import graphKeys from "../keys";
 import type { EntityNeighborsResponse } from "./useEntityNeighborsQuery.type";
 
-const fetchEntityNeighbors = async (uid: string) => {
-  const response = await api.get<EntityNeighborsResponse>(`/api/v1/graph/entities/${uid}/neighbors`);
+interface UseEntityNeighborsParams {
+  uid: string;
+  depth?: number;
+  limit?: number;
+}
+
+const fetchEntityNeighbors = async ({ uid, depth, limit }: UseEntityNeighborsParams) => {
+  const response = await api.get<EntityNeighborsResponse>(
+    `/api/v1/graph/entities/${uid}/neighbors`,
+    { params: { depth, limit } },
+  );
 
   return response.data;
 };
 
-const useEntityNeighborsQuery = (uid: string) => {
+const useEntityNeighborsQuery = (params: UseEntityNeighborsParams) => {
   return useQuery({
-    queryKey: graphKeys.neighbors(uid),
-    queryFn: () => fetchEntityNeighbors(uid),
-    enabled: !!uid,
+    queryKey: [...graphKeys.neighbors(params.uid), params],
+    queryFn: () => fetchEntityNeighbors(params),
+    enabled: !!params.uid,
   });
 };
 

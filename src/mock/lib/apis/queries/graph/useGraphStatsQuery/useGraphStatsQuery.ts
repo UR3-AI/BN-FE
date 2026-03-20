@@ -5,16 +5,19 @@ import { api } from "@lib/apis/axios";
 import graphKeys from "../keys";
 import type { GraphStatsResponse } from "./useGraphStatsQuery.type";
 
-const fetchGraphStats = async () => {
-  const response = await api.get<GraphStatsResponse>("/api/v1/graph/stats");
+const fetchGraphStats = async (hubLimit?: number) => {
+  const response = await api.get<GraphStatsResponse>(
+    "/api/v1/graph/stats",
+    { params: hubLimit ? { hub_limit: hubLimit } : undefined },
+  );
 
   return response.data;
 };
 
-const useGraphStatsQuery = () => {
+const useGraphStatsQuery = (hubLimit?: number) => {
   return useQuery({
-    queryKey: graphKeys.stats,
-    queryFn: fetchGraphStats,
+    queryKey: [...graphKeys.stats, hubLimit],
+    queryFn: () => fetchGraphStats(hubLimit),
   });
 };
 

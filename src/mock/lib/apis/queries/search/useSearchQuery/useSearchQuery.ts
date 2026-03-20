@@ -13,7 +13,7 @@ const fetchSearch = async (params: UseSearchQueryParams) => {
 
 const useSearchQuery = (params: UseSearchQueryParams) => {
   return useQuery({
-    queryKey: searchKeys.unified(params.q),
+    queryKey: [...searchKeys.unified(params.q), params],
     queryFn: () => fetchSearch(params),
     enabled: !!params.q,
   });
