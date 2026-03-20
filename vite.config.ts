@@ -12,6 +12,7 @@ const mockSpaFallback = (): Plugin => ({
       const url = req.url ?? "";
       const isAsset =
         url.startsWith("/@") ||
+        url.startsWith("/api") ||
         url.startsWith("/src") ||
         url.startsWith("/node_modules") ||
         url.includes(".");
@@ -36,5 +37,15 @@ export default defineConfig(({ mode }) => {
         "@app": path.resolve(__dirname, "./src/app"),
       },
     },
+    ...(isMock && {
+      server: {
+        proxy: {
+          "/api": {
+            target: "https://bn-be-production.up.railway.app",
+            changeOrigin: true,
+          },
+        },
+      },
+    }),
   };
 });
