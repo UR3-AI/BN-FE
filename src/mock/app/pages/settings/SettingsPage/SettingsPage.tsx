@@ -167,9 +167,15 @@ const SettingsPage = () => {
                         key={label}
                         className={`flex items-center justify-between ${disabled ? "opacity-50" : ""}`}>
                         <span className="text-[1.4rem] text-on-surface">{label}</span>
-                        <div className={`relative inline-flex h-[2rem] w-[4rem] items-center rounded-full ${checked ? "bg-secondary-container" : "bg-surface-container-highest"} ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={checked}
+                          aria-label={label}
+                          disabled={disabled}
+                          className={`relative inline-flex h-[2rem] w-[4rem] items-center rounded-full ${checked ? "bg-secondary-container" : "bg-surface-container-highest"} ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
                           <div className={`absolute h-[1.6rem] w-[1.6rem] rounded-full transition-all ${checked ? "left-[2.2rem] bg-secondary" : "left-[0.2rem] bg-secondary/30"}`} />
-                        </div>
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -187,9 +193,14 @@ const SettingsPage = () => {
                         key={label}
                         className="flex items-center justify-between">
                         <span className="text-[1.4rem] text-on-surface">{label}</span>
-                        <div className={`relative inline-flex h-[2rem] w-[4rem] cursor-pointer items-center rounded-full ${checked ? "bg-primary-container/30" : "bg-surface-container-highest"}`}>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={checked}
+                          aria-label={label}
+                          className={`relative inline-flex h-[2rem] w-[4rem] cursor-pointer items-center rounded-full ${checked ? "bg-primary-container/30" : "bg-surface-container-highest"}`}>
                           <div className={`absolute h-[1.6rem] w-[1.6rem] rounded-full transition-all ${checked ? "left-[2.2rem] bg-primary" : "left-[0.2rem] bg-primary/40"}`} />
-                        </div>
+                        </button>
                       </div>
                     ))}
                   </div>

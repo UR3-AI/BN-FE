@@ -8,12 +8,16 @@ import { routes } from "./app/router/routes";
 
 const router = createBrowserRouter(routes);
 
-const MockApp = () => {
+const MockAppInner = () => {
   useTokenRefresh();
 
+  return <RouterProvider router={router} />;
+};
+
+const MockApp = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <MockAppInner />
     </QueryClientProvider>
   );
 };

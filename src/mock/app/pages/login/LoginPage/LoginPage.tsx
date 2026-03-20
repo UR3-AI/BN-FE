@@ -30,8 +30,16 @@ const LoginPage = () => {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<AuthFormValues>();
+
+  const handleToggleMode = () => {
+    setIsSignUp(prev => !prev);
+    reset();
+    loginMutation.reset();
+    registerMutation.reset();
+  };
 
   const onSubmit = (data: AuthFormValues) => {
     mutation.mutate(data, {
@@ -53,7 +61,7 @@ const LoginPage = () => {
         </div>
         <button
           type="button"
-          onClick={() => setIsSignUp(prev => !prev)}
+          onClick={handleToggleMode}
           className="font-body text-[1.4rem] text-on-surface-variant transition-colors hover:text-primary">
           {isSignUp ? (
             <>
