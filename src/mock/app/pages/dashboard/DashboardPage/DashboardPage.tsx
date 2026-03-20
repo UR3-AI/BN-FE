@@ -1,29 +1,6 @@
 import { ArrowOutwardIcon, PsychologyIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
-
-const RECENT_NOTES = [
-  {
-    id: 1,
-    title: "The Alchemy of Minimalism",
-    description:
-      "Exploring how reduction in design leads to spiritual abundance. Referencing Rams and Soseki...",
-    date: "OCT 23 • 14:15",
-  },
-  {
-    id: 2,
-    title: "Project: Helios Architecture",
-    description:
-      "Solar panel integration in brutalist concrete structures. Phase 1 materials list...",
-    date: "OCT 22 • 09:30",
-  },
-  {
-    id: 3,
-    title: "Reading List: Q4 2026",
-    description:
-      'Finished "The Order of Time" by Carlo Rovelli. Starting "Hyperobjects" by Timothy Morton...',
-    date: "OCT 21 • 18:42",
-  },
-];
+import useDashboardQuery from "@/mock/lib/apis/queries/dashboard/useDashboardQuery/useDashboardQuery";
 
 const FOCUS_TASKS = [
   {
@@ -66,6 +43,32 @@ const WEEKLY_ACTIVITY: { day: string; heightPercent: number; color: BarColor }[]
 ];
 
 const DashboardPage = () => {
+  const { data, isLoading, error } = useDashboardQuery();
+
+  if (isLoading) {
+    return (
+      <GlobalLayout
+        activeMenu="dashboard"
+        showSearch={true}>
+        <div className="flex-1 flex items-center justify-center text-[1.4rem] text-on-surface-variant">
+          Loading...
+        </div>
+      </GlobalLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <GlobalLayout
+        activeMenu="dashboard"
+        showSearch={true}>
+        <div className="flex-1 flex items-center justify-center text-[1.4rem] text-error">
+          데이터를 불러오지 못했습니다.
+        </div>
+      </GlobalLayout>
+    );
+  }
+
   return (
     <GlobalLayout
       activeMenu="dashboard"
@@ -199,7 +202,7 @@ const DashboardPage = () => {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-headline text-[3.2rem] font-extrabold text-on-surface">
-                    2,842
+                    {data.graph_stats.total_entities.toLocaleString()}
                   </span>
                   <span className="text-[1rem] text-on-surface-variant/50 uppercase tracking-[0.15em] font-bold">
                     Total Entities
@@ -211,10 +214,10 @@ const DashboardPage = () => {
             <div className="flex justify-between items-end border-t border-outline-variant/10 pt-[1.6rem]">
               <div className="flex flex-col">
                 <span className="text-primary font-bold text-[1.8rem]">
-                  12
+                  {data.graph_stats.total_relationships.toLocaleString()}
                 </span>
                 <span className="text-[0.9rem] text-on-surface-variant uppercase tracking-wider">
-                  New Connections today
+                  Total Relationships
                 </span>
               </div>
               <button
@@ -242,18 +245,21 @@ const DashboardPage = () => {
               </button>
             </div>
             <div className="flex flex-col gap-[1.6rem]">
-              {RECENT_NOTES.map(note => (
+              {data.recent_notes.map(note => (
                 <div
-                  key={note.id}
+                  key={note.note_number}
                   className="group p-[1.6rem] rounded-[0.25rem] hover:bg-surface-container transition-all cursor-pointer">
                   <h4 className="text-[1.4rem] font-bold text-on-surface mb-[0.4rem] group-hover:text-primary transition-colors">
-                    {note.title}
+                    {note.title ?? `Note #${note.note_number}`}
                   </h4>
-                  <p className="text-[1.2rem] text-on-surface-variant line-clamp-2 leading-relaxed mb-[0.8rem]">
-                    {note.description}
-                  </p>
                   <span className="text-[1rem] text-on-surface-variant/40 font-mono">
-                    {note.date}
+                    {new Date(note.created_at).toLocaleString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })}
                   </span>
                 </div>
               ))}
@@ -267,7 +273,7 @@ const DashboardPage = () => {
                 Today's Focus
               </h3>
               <span className="text-[1rem] text-secondary font-bold uppercase tracking-[0.12em]">
-                2 / 5 DONE
+                {data.action_summary.completed} / {data.action_summary.total} DONE
               </span>
             </div>
             <div className="flex flex-col gap-[0.4rem]">
@@ -307,18 +313,18 @@ const DashboardPage = () => {
             <div className="grid grid-cols-2 gap-[1.6rem]">
               <div className="p-[1.6rem] bg-surface-container rounded-[0.25rem]">
                 <span className="text-[1rem] text-on-surface-variant/50 uppercase tracking-[0.15em] font-bold">
-                  Notes
+                  Entities
                 </span>
                 <div className="font-headline text-[2.4rem] font-bold text-on-surface mt-[0.4rem]">
-                  1,428
+                  {data.graph_stats.total_entities.toLocaleString()}
                 </div>
               </div>
               <div className="p-[1.6rem] bg-surface-container rounded-[0.25rem]">
                 <span className="text-[1rem] text-on-surface-variant/50 uppercase tracking-[0.15em] font-bold">
-                  Journal
+                  Relations
                 </span>
                 <div className="font-headline text-[2.4rem] font-bold text-on-surface mt-[0.4rem]">
-                  312
+                  {data.graph_stats.total_relationships.toLocaleString()}
                 </div>
               </div>
             </div>

@@ -15,6 +15,7 @@ const useRelatedNotesQuery = (noteNumber: number) => {
   return useQuery({
     queryKey: notesKeys.related(noteNumber),
     queryFn: () => fetchRelatedNotes(noteNumber),
+    enabled: !!noteNumber,
   });
 };
 

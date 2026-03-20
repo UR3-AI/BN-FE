@@ -7,8 +7,37 @@ import {
   VerifiedUserIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useMeQuery from "@/mock/lib/apis/queries/auth/useMeQuery/useMeQuery";
 
 const SettingsPage = () => {
+  const { data, isLoading, error } = useMeQuery();
+
+  if (isLoading) {
+    return (
+      <GlobalLayout
+        activeMenu="settings"
+        topbarTitle="Settings"
+        showSearch={false}>
+        <div className="flex-1 flex items-center justify-center text-[1.4rem] text-on-surface-variant">
+          Loading...
+        </div>
+      </GlobalLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <GlobalLayout
+        activeMenu="settings"
+        topbarTitle="Settings"
+        showSearch={false}>
+        <div className="flex-1 flex items-center justify-center text-[1.4rem] text-error">
+          데이터를 불러오지 못했습니다.
+        </div>
+      </GlobalLayout>
+    );
+  }
+
   return (
     <GlobalLayout
       activeMenu="settings"
@@ -77,7 +106,7 @@ const SettingsPage = () => {
                     <input
                       id="settings-email"
                       type="email"
-                      defaultValue="alex.rivera@atelier.io"
+                      defaultValue={data.email}
                       className="w-full rounded-t-[0.125rem] border-0 border-b-2 border-outline-variant/20 bg-surface-container-highest px-[1.6rem] py-[1.2rem] text-on-surface transition-all focus:border-primary focus:outline-none focus:ring-0"
                     />
                   </div>

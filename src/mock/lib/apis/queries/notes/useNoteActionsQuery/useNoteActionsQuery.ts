@@ -15,6 +15,7 @@ const useNoteActionsQuery = (noteNumber: number) => {
   return useQuery({
     queryKey: notesKeys.actions(noteNumber),
     queryFn: () => fetchNoteActions(noteNumber),
+    enabled: !!noteNumber,
   });
 };
 
