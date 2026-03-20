@@ -59,6 +59,7 @@ const Topbar = ({
             </div>
             <input
               type="text"
+              aria-label="Search notes, entities, or tasks"
               placeholder="Search notes, entities, or tasks..."
               className="block w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-low py-[0.6rem] pl-[4rem] pr-[4.8rem] text-[1.4rem] text-on-surface transition-all placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
             />

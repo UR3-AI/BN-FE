@@ -28,7 +28,7 @@ const bottomNav = [
 
 const Sidebar = ({ activeMenu = "dashboard" }: SidebarProps) => {
   return (
-    <aside className="sticky left-0 hidden h-screen w-[25.6rem] flex-col bg-surface-container-low px-[1.6rem] py-[3.2rem] font-body text-[1.4rem] tracking-wide md:flex">
+    <aside className="sticky top-0 left-0 hidden h-screen w-[25.6rem] flex-col bg-surface-container-low px-[1.6rem] py-[3.2rem] font-body text-[1.4rem] tracking-wide md:flex">
       <div className="mb-[4rem] px-[1.6rem]">
         <div className="mb-[0.4rem] flex items-center gap-[0.8rem]">
           <span className="font-headline text-[1.8rem] font-bold text-primary">
