@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+html {
+  font-size: 62.5%;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #131313;
+  color: #e5e2e1;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Manrope", sans-serif;
+}
+
+@theme {
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+
+  /* Primary (Soft Amber) */
+  --color-primary: #ffe2ab;
+  --color-primary-container: #ffbf00;
+  --color-primary-fixed: #ffdfa0;
+  --color-primary-fixed-dim: #fbbc00;
+  --color-on-primary: #402d00;
+  --color-on-primary-fixed: #261a00;
+  --color-on-primary-container: #6d5000;
+
+  /* Secondary (Muted Teal) */
+  --color-secondary: #9fd0cd;
+  --color-secondary-container: #20504f;
+  --color-secondary-fixed: #baece9;
+  --color-secondary-fixed-dim: #9fd0cd;
+  --color-on-secondary: #003736;
+  --color-on-secondary-container: #91c1bf;
+
+  /* Tertiary (Cool Blue) */
+  --color-tertiary: #d0e9f6;
+  --color-tertiary-container: #b4cdda;
+  --color-tertiary-fixed: #cde6f4;
+  --color-tertiary-fixed-dim: #b1cad7;
+  --color-on-tertiary: #1c333e;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  /* Surface hierarchy */
+  --color-background: #131313;
+  --color-surface: #131313;
+  --color-surface-dim: #131313;
+  --color-surface-bright: #393939;
+  --color-surface-tint: #fbbc00;
+  --color-surface-variant: #353534;
+  --color-surface-container-lowest: #0e0e0e;
+  --color-surface-container-low: #1c1b1b;
+  --color-surface-container: #201f1f;
+  --color-surface-container-high: #2a2a2a;
+  --color-surface-container-highest: #353534;
+
+  /* On-surface text */
+  --color-on-surface: #e5e2e1;
+  --color-on-background: #e5e2e1;
+  --color-on-surface-variant: #d4c5ab;
+
+  /* Outline */
+  --color-outline: #9c8f78;
+  --color-outline-variant: #504532;
+
+  /* Inverse */
+  --color-inverse-surface: #e5e2e1;
+  --color-inverse-on-surface: #313030;
+  --color-inverse-primary: #795900;
+
+  --animate-loading-spinner: loading-spinner 1s infinite ease;
+}
+
+@keyframes loading-spinner {
+  from {
+    transform: rotate(0turn);
+  }
+  to {
+    transform: rotate(1turn);
+  }
+}
