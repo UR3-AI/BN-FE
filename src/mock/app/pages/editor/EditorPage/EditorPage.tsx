@@ -3,14 +3,17 @@ import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQ
 
 import { useEffect, useRef, useState } from "react";
 
-import { CloseIcon, LinkIcon } from "@/mock/app/components/Icons";
+import { CloseIcon, DeleteIcon, LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useDeleteAttachmentMutation from "@/mock/lib/apis/mutations/notes/useDeleteAttachmentMutation/useDeleteAttachmentMutation";
+import useUploadAttachmentMutation from "@/mock/lib/apis/mutations/notes/useUploadAttachmentMutation/useUploadAttachmentMutation";
 import useAddTagsMutation from "@/mock/lib/apis/mutations/tags/useAddTagsMutation/useAddTagsMutation";
 import useRemoveTagsMutation from "@/mock/lib/apis/mutations/tags/useRemoveTagsMutation/useRemoveTagsMutation";
 import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
 import useDeleteNoteMutation from "@/mock/lib/apis/mutations/notes/useDeleteNoteMutation/useDeleteNoteMutation";
 import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
 import useReprocessNoteMutation from "@/mock/lib/apis/mutations/notes/useReprocessNoteMutation/useReprocessNoteMutation";
+import useAttachmentsQuery from "@/mock/lib/apis/queries/notes/useAttachmentsQuery/useAttachmentsQuery";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
@@ -30,7 +33,10 @@ const EditorPage = () => {
   const reprocessMutation = useReprocessNoteMutation();
   const addTagsMutation = useAddTagsMutation();
   const removeTagsMutation = useRemoveTagsMutation();
+  const uploadAttachmentMutation = useUploadAttachmentMutation();
+  const deleteAttachmentMutation = useDeleteAttachmentMutation();
   const [tagInput, setTagInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const sseAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -62,6 +68,8 @@ const EditorPage = () => {
 
   const { data: noteActions, isLoading: isActionsLoading } =
     useNoteActionsQuery(selectedNoteNumber);
+
+  const { data: attachmentsData } = useAttachmentsQuery(selectedNoteNumber);
 
   const isLoading =
     isNotesLoading || (hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading));
@@ -378,6 +386,95 @@ const EditorPage = () => {
             className="w-full flex-1 resize-none bg-transparent font-body text-[2rem] leading-relaxed text-on-surface/90 outline-none placeholder:text-on-surface-variant"
             style={{ minHeight: "40rem", fieldSizing: "content" as never }}
           />
+
+          {/* Attachments */}
+          <section className="mt-[6.4rem] border-t border-outline-variant/10 pt-[3.2rem]">
+            <h3 className="mb-[2rem] font-headline text-[1.6rem] font-bold text-on-surface">
+              Attachments
+            </h3>
+            <div className="mb-[1.6rem] flex items-center gap-[1.2rem]">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  uploadAttachmentMutation.mutate(
+                    { noteNumber: selectedNoteNumber, file },
+                    {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ["notes"] });
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      },
+                    },
+                  );
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadAttachmentMutation.isPending}
+                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container disabled:opacity-50">
+                {uploadAttachmentMutation.isPending ? "Uploading..." : "Upload File"}
+              </button>
+            </div>
+            {(attachmentsData?.items ?? []).length > 0 && (
+              <div className="space-y-[0.8rem]">
+                {attachmentsData?.items.map(attachment => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center justify-between rounded-[0.25rem] bg-surface-container-low px-[1.6rem] py-[1rem]">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const token = useAuthStore.getState().accessToken;
+                          const res = await fetch(
+                            `/api/v1/notes/${selectedNoteNumber}/attachments/${attachment.id}/download`,
+                            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+                          );
+                          if (!res.ok) return;
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = attachment.filename;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        } catch {
+                          // network error
+                        }
+                      }}
+                      className="text-[1.3rem] font-medium text-primary hover:underline">
+                      {attachment.filename}
+                    </button>
+                    <div className="flex items-center gap-[1.2rem]">
+                      <span className="text-[1.1rem] text-secondary">
+                        {(attachment.size / 1024).toFixed(1)} KB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          deleteAttachmentMutation.mutate(
+                            { noteNumber: selectedNoteNumber, attachmentId: attachment.id },
+                            {
+                              onSuccess: () => {
+                                queryClient.invalidateQueries({ queryKey: ["notes"] });
+                              },
+                            },
+                          )
+                        }
+                        disabled={deleteAttachmentMutation.isPending}
+                        className="text-secondary transition-colors hover:text-error disabled:opacity-50">
+                        <DeleteIcon size="1.6rem" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           {/* Cognitive Associations */}
           {relatedNotes.length > 0 && (

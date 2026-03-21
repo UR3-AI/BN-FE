@@ -3,3 +3,5 @@ export { default as useUpdateNoteMutation } from "./useUpdateNoteMutation/useUpd
 export { default as useDeleteNoteMutation } from "./useDeleteNoteMutation/useDeleteNoteMutation";
 export { default as usePinNoteMutation } from "./usePinNoteMutation/usePinNoteMutation";
 export { default as useReprocessNoteMutation } from "./useReprocessNoteMutation/useReprocessNoteMutation";
+export { default as useUploadAttachmentMutation } from "./useUploadAttachmentMutation/useUploadAttachmentMutation";
+export { default as useDeleteAttachmentMutation } from "./useDeleteAttachmentMutation/useDeleteAttachmentMutation";
