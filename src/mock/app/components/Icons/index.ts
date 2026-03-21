@@ -37,6 +37,7 @@ export { default as NotificationsActiveIcon } from "./NotificationsActiveIcon/No
 export { default as PasskeyIcon } from "./PasskeyIcon/PasskeyIcon";
 export { default as PhotoCameraIcon } from "./PhotoCameraIcon/PhotoCameraIcon";
 export { default as PlusCircleIcon } from "./PlusCircleIcon/PlusCircleIcon";
+export { default as PushPinIcon } from "./PushPinIcon/PushPinIcon";
 export { default as PsychologyIcon } from "./PsychologyIcon/PsychologyIcon";
 export { default as SearchIcon } from "./SearchIcon/SearchIcon";
 export { default as SecurityIcon } from "./SecurityIcon/SecurityIcon";
