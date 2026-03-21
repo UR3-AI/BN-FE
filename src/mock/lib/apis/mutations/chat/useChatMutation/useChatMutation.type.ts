@@ -3,8 +3,15 @@ export interface ChatRequest {
   session_id?: string;
 }
 
+export interface ChatSourceNote {
+  note_number: number;
+  title: string | null;
+  summary: string | null;
+}
+
 export interface ChatResponse {
-  response: string;
   session_id: string;
-  sources: unknown[];
+  message: string;
+  sources: ChatSourceNote[];
+  created_at: string;
 }

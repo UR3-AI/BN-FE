@@ -233,6 +233,7 @@ const EditorPage = () => {
                 {relatedNotes.map(related => (
                   <div
                     key={related.note_number}
+                    onClick={() => handleSelectNote(related.note_number)}
                     className="group cursor-pointer rounded-[0.25rem] bg-surface-container-low p-[2rem] transition-colors hover:bg-surface-container">
                     <span className="mb-[0.8rem] block text-[1rem] font-bold uppercase tracking-[0.15em] text-secondary">
                       NOTE_{related.note_number}.MD
@@ -241,7 +242,7 @@ const EditorPage = () => {
                       {related.title ?? "Untitled"}
                     </h4>
                     <p className="mt-[0.8rem] text-[1.4rem] text-on-surface-variant">
-                      Similarity: {Math.round(related.similarity_score * 100)}%
+                      Similarity: {Math.round(related.relevance_score * 100)}%
                     </p>
                   </div>
                 ))}

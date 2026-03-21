@@ -9,6 +9,7 @@ import {
   HelpIcon,
   PlusCircleIcon,
   SettingsIcon,
+  SparklesIcon,
 } from "@/mock/app/components/Icons";
 
 const mainNav = [
@@ -16,6 +17,7 @@ const mainNav = [
   { label: "Editor", path: "/", icon: EditorIcon },
   { label: "Knowledge Graph", path: "/graph", icon: GraphIcon },
   { label: "To-Dos", path: "/todos", icon: ChecklistIcon },
+  { label: "Chat", path: "/chat", icon: SparklesIcon },
   { label: "Settings", path: "/settings", icon: SettingsIcon },
 ];
 

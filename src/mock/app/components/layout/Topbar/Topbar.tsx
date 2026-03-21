@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+
 import {
   AccountIcon,
   BellIcon,
@@ -6,7 +8,10 @@ import {
   FolderIcon,
   SearchIcon,
 } from "@/mock/app/components/Icons";
+import useReadNotificationMutation from "@/mock/lib/apis/mutations/notifications/useReadNotificationMutation/useReadNotificationMutation";
+import useNotificationsQuery from "@/mock/lib/apis/queries/notifications/useNotificationsQuery/useNotificationsQuery";
 import useUnreadCountQuery from "@/mock/lib/apis/queries/notifications/useUnreadCountQuery/useUnreadCountQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TopbarProps {
   title?: string;
@@ -14,13 +19,53 @@ interface TopbarProps {
   showSearch?: boolean;
 }
 
+const formatTimeAgo = (dateString: string) => {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+};
+
 const Topbar = ({
   title = "Cognitive Canvas",
   breadcrumb,
   showSearch = true,
 }: TopbarProps) => {
+  const queryClient = useQueryClient();
   const { data: unreadData } = useUnreadCountQuery();
   const unreadCount = unreadData?.count ?? 0;
+
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: notificationsData } = useNotificationsQuery({ limit: 10 });
+  const readMutation = useReadNotificationMutation();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const handleReadNotification = (notificationId: string, isRead: boolean) => {
+    if (isRead) return;
+    readMutation.mutate(notificationId, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      },
+    });
+  };
+
+  const notifications = notificationsData?.items ?? [];
 
   return (
     <header className="sticky top-0 z-20 flex h-[6.4rem] w-full items-center justify-between bg-surface px-[2.4rem] shadow-[0px_0px_32px_0px_rgba(229,226,225,0.06)]">
@@ -86,17 +131,67 @@ const Topbar = ({
             SYNCED
           </span>
         </div>
-        <button
-          type="button"
-          className="relative rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"
-          aria-label="Notifications">
-          <BellIcon size="2.4rem" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-[0.2rem] -right-[0.2rem] flex h-[1.8rem] min-w-[1.8rem] items-center justify-center rounded-full bg-primary px-[0.4rem] text-[1rem] font-bold text-on-primary">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
+
+        {/* Notification Bell + Dropdown */}
+        <div
+          ref={dropdownRef}
+          className="relative">
+          <button
+            type="button"
+            onClick={() => setIsOpen(prev => !prev)}
+            className="relative rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"
+            aria-label="Notifications">
+            <BellIcon size="2.4rem" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-[0.2rem] -right-[0.2rem] flex h-[1.8rem] min-w-[1.8rem] items-center justify-center rounded-full bg-primary px-[0.4rem] text-[1rem] font-bold text-on-primary">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {isOpen && (
+            <div className="absolute right-0 mt-[0.4rem] w-[36rem] rounded-[0.5rem] border border-outline-variant/20 bg-surface-container shadow-lg">
+              <div className="border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
+                <h3 className="text-[1.3rem] font-bold text-on-surface">Notifications</h3>
+              </div>
+              <div className="max-h-[40rem] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-[1.6rem] py-[3.2rem] text-center text-[1.2rem] text-on-surface-variant">
+                    No notifications
+                  </div>
+                ) : (
+                  notifications.map(notification => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => handleReadNotification(notification.id, notification.is_read)}
+                      className={`w-full px-[1.6rem] py-[1.2rem] text-left transition-colors hover:bg-surface-container-high ${
+                        !notification.is_read ? "bg-primary/5" : ""
+                      }`}>
+                      <div className="flex items-start gap-[1.2rem]">
+                        {!notification.is_read && (
+                          <span className="mt-[0.6rem] h-[0.6rem] w-[0.6rem] shrink-0 rounded-full bg-primary" />
+                        )}
+                        <div className={notification.is_read ? "pl-[1.8rem]" : ""}>
+                          <p className="text-[1.2rem] font-semibold text-on-surface">
+                            {notification.title}
+                          </p>
+                          <p className="mt-[0.2rem] text-[1.1rem] text-on-surface-variant line-clamp-2">
+                            {notification.body}
+                          </p>
+                          <span className="mt-[0.4rem] block text-[1rem] text-outline">
+                            {formatTimeAgo(notification.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
+
         <button
           type="button"
           className="rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"

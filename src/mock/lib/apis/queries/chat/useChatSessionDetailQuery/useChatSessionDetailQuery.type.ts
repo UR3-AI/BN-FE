@@ -1,8 +1,11 @@
+import type { ChatSourceNote } from "@/mock/lib/apis/mutations/chat/useChatMutation/useChatMutation.type";
+
 export interface ChatMessage {
+  id: string;
   role: string;
   content: string;
+  sources: ChatSourceNote[];
   created_at: string;
-  sources?: unknown[];
 }
 
 export interface ChatSessionDetailResponse {
@@ -10,5 +13,4 @@ export interface ChatSessionDetailResponse {
   title: string | null;
   messages: ChatMessage[];
   created_at: string;
-  updated_at: string;
 }

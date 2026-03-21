@@ -1,6 +1,8 @@
 import type { NoteListItem } from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery.type";
 
-import { DeleteIcon, PlusCircleIcon, PushPinIcon } from "@/mock/app/components/Icons";
+import { useState } from "react";
+
+import { DeleteIcon, PlusCircleIcon, PushPinIcon, SearchIcon } from "@/mock/app/components/Icons";
 
 interface NoteListPanelProps {
   notes: NoteListItem[];
@@ -36,8 +38,18 @@ const NoteListPanel = ({
   onDelete,
   isCreating,
 }: NoteListPanelProps) => {
-  const pinnedNotes = notes.filter(n => n.is_pinned);
-  const recentNotes = notes.filter(n => !n.is_pinned);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredNotes = searchQuery
+    ? notes.filter(
+        n =>
+          (n.title ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          n.content_preview.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : notes;
+
+  const pinnedNotes = filteredNotes.filter(n => n.is_pinned);
+  const recentNotes = filteredNotes.filter(n => !n.is_pinned);
 
   return (
     <div className="hidden w-[28rem] shrink-0 flex-col border-r border-outline-variant/10 bg-surface-container-lowest lg:flex">
@@ -57,6 +69,25 @@ const NoteListPanel = ({
           />
           {isCreating ? "Creating..." : "New"}
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-[1rem]">
+            <SearchIcon
+              size="1.4rem"
+              className="text-on-surface-variant/50"
+            />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search notes..."
+            className="w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-low py-[0.6rem] pl-[3.2rem] pr-[1.2rem] text-[1.2rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
       </div>
 
       {/* Note List */}
@@ -107,9 +138,11 @@ const NoteListPanel = ({
           </div>
         )}
 
-        {notes.length === 0 && (
+        {filteredNotes.length === 0 && (
           <div className="flex flex-col items-center justify-center px-[1.6rem] py-[4.8rem]">
-            <p className="text-[1.2rem] text-on-surface-variant">No notes yet</p>
+            <p className="text-[1.2rem] text-on-surface-variant">
+              {searchQuery ? "No matching notes" : "No notes yet"}
+            </p>
           </div>
         )}
       </div>

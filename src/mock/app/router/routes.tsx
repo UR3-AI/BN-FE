@@ -2,6 +2,7 @@ import type { RouteObject } from "react-router-dom";
 
 import { ProtectedRoute, PublicRoute } from "@app/router/provider";
 
+import { ChatPage } from "@/mock/app/pages/chat";
 import { DashboardPage } from "@/mock/app/pages/dashboard";
 import { EditorPage } from "@/mock/app/pages/editor";
 import { GraphPage } from "@/mock/app/pages/graph";
@@ -19,6 +20,7 @@ export const routes: RouteObject[] = [
       { path: "/search", element: <SearchPage /> },
       { path: "/graph", element: <GraphPage /> },
       { path: "/todos", element: <TodosPage /> },
+      { path: "/chat", element: <ChatPage /> },
       { path: "/settings", element: <SettingsPage /> },
     ],
   },
