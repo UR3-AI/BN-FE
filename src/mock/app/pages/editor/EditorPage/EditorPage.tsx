@@ -6,6 +6,7 @@ import { GlobalLayout } from "@/mock/app/components/layout";
 import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
 import useDeleteNoteMutation from "@/mock/lib/apis/mutations/notes/useDeleteNoteMutation/useDeleteNoteMutation";
 import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
+import useReprocessNoteMutation from "@/mock/lib/apis/mutations/notes/useReprocessNoteMutation/useReprocessNoteMutation";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
@@ -21,6 +22,7 @@ const EditorPage = () => {
   const createNoteMutation = useCreateNoteMutation();
   const pinNoteMutation = usePinNoteMutation();
   const deleteNoteMutation = useDeleteNoteMutation();
+  const reprocessMutation = useReprocessNoteMutation();
 
   const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
     useEditorNote();
@@ -154,6 +156,15 @@ const EditorPage = () => {
   }
 
   const isProcessing = noteDetail.processing_status === "processing";
+  const isFailed = noteDetail.processing_status === "failed";
+
+  const handleReprocess = () => {
+    reprocessMutation.mutate(selectedNoteNumber, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["notes"] });
+      },
+    });
+  };
 
   return (
     <GlobalLayout
@@ -185,9 +196,22 @@ const EditorPage = () => {
           {/* Draft Badge */}
           <div className="mb-[4.8rem]">
             <div className="mb-[1.6rem] flex items-center gap-[1.6rem]">
-              <span className="rounded-[0.125rem] bg-secondary-container/30 px-[0.8rem] py-[0.2rem] text-[1rem] font-semibold uppercase tracking-[0.3em] text-secondary">
-                Draft
+              <span className={`rounded-[0.125rem] px-[0.8rem] py-[0.2rem] text-[1rem] font-semibold uppercase tracking-[0.3em] ${
+                isFailed
+                  ? "bg-error/10 text-error"
+                  : "bg-secondary-container/30 text-secondary"
+              }`}>
+                {isFailed ? "Failed" : "Draft"}
               </span>
+              {isFailed && (
+                <button
+                  type="button"
+                  onClick={handleReprocess}
+                  disabled={reprocessMutation.isPending}
+                  className="rounded-[0.25rem] bg-primary px-[1.2rem] py-[0.4rem] text-[1.1rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
+                  {reprocessMutation.isPending ? "Reprocessing..." : "Reprocess"}
+                </button>
+              )}
               {noteDetail.tags.map(tag => (
                 <span
                   key={tag}

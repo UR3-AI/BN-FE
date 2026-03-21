@@ -8,9 +8,12 @@ import {
   FolderIcon,
   SearchIcon,
 } from "@/mock/app/components/Icons";
+import useLogoutMutation from "@/mock/lib/apis/mutations/auth/useLogoutMutation/useLogoutMutation";
+import useReadAllNotificationsMutation from "@/mock/lib/apis/mutations/notifications/useReadAllNotificationsMutation/useReadAllNotificationsMutation";
 import useReadNotificationMutation from "@/mock/lib/apis/mutations/notifications/useReadNotificationMutation/useReadNotificationMutation";
 import useNotificationsQuery from "@/mock/lib/apis/queries/notifications/useNotificationsQuery/useNotificationsQuery";
 import useUnreadCountQuery from "@/mock/lib/apis/queries/notifications/useUnreadCountQuery/useUnreadCountQuery";
+import useAuthStore from "@lib/stores/useAuthStore/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface TopbarProps {
@@ -43,18 +46,26 @@ const Topbar = ({
 
   const { data: notificationsData } = useNotificationsQuery({ limit: 10 });
   const readMutation = useReadNotificationMutation();
+  const readAllMutation = useReadAllNotificationsMutation();
+  const logoutMutation = useLogoutMutation();
+  const { refreshToken, clearTokens } = useAuthStore();
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setShowAccountMenu(false);
+      }
     };
-    if (isOpen) {
+    if (isOpen || showAccountMenu) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, showAccountMenu]);
 
   const handleReadNotification = (notificationId: string, isRead: boolean) => {
     if (isRead) return;
@@ -65,7 +76,27 @@ const Topbar = ({
     });
   };
 
+  const handleReadAll = () => {
+    readAllMutation.mutate(undefined, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      },
+    });
+  };
+
+  const handleLogout = () => {
+    if (refreshToken) {
+      logoutMutation.mutate(
+        { refresh_token: refreshToken },
+        { onSettled: () => clearTokens() },
+      );
+    } else {
+      clearTokens();
+    }
+  };
+
   const notifications = notificationsData?.items ?? [];
+  const hasUnread = notifications.some(n => !n.is_read);
 
   return (
     <header className="sticky top-0 z-20 flex h-[6.4rem] w-full items-center justify-between bg-surface px-[2.4rem] shadow-[0px_0px_32px_0px_rgba(229,226,225,0.06)]">
@@ -151,8 +182,17 @@ const Topbar = ({
 
           {isOpen && (
             <div className="absolute right-0 mt-[0.4rem] w-[36rem] rounded-[0.5rem] border border-outline-variant/20 bg-surface-container shadow-lg">
-              <div className="border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
+              <div className="flex items-center justify-between border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
                 <h3 className="text-[1.3rem] font-bold text-on-surface">Notifications</h3>
+                {hasUnread && (
+                  <button
+                    type="button"
+                    onClick={handleReadAll}
+                    disabled={readAllMutation.isPending}
+                    className="text-[1.1rem] font-medium text-primary hover:underline disabled:opacity-50">
+                    Mark all read
+                  </button>
+                )}
               </div>
               <div className="max-h-[40rem] overflow-y-auto">
                 {notifications.length === 0 ? (
@@ -192,12 +232,29 @@ const Topbar = ({
           )}
         </div>
 
-        <button
-          type="button"
-          className="rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"
-          aria-label="Account">
-          <AccountIcon size="2.4rem" />
-        </button>
+        {/* Account + Logout */}
+        <div
+          ref={accountRef}
+          className="relative">
+          <button
+            type="button"
+            onClick={() => setShowAccountMenu(prev => !prev)}
+            className="rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"
+            aria-label="Account">
+            <AccountIcon size="2.4rem" />
+          </button>
+          {showAccountMenu && (
+            <div className="absolute right-0 mt-[0.4rem] w-[18rem] rounded-[0.5rem] border border-outline-variant/20 bg-surface-container shadow-lg">
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+                className="w-full px-[1.6rem] py-[1.2rem] text-left text-[1.3rem] font-medium text-error transition-colors hover:bg-error/10 disabled:opacity-50">
+                {logoutMutation.isPending ? "Logging out..." : "Logout"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

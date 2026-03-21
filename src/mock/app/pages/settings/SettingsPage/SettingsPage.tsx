@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   EditIcon,
   NotificationsActiveIcon,
@@ -7,10 +9,54 @@ import {
   VerifiedUserIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useChangePasswordMutation from "@/mock/lib/apis/mutations/auth/useChangePasswordMutation/useChangePasswordMutation";
+import useUpdateTimezoneMutation from "@/mock/lib/apis/mutations/users/useUpdateTimezoneMutation/useUpdateTimezoneMutation";
 import useMeQuery from "@/mock/lib/apis/queries/auth/useMeQuery/useMeQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SettingsPage = () => {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useMeQuery();
+  const changePasswordMutation = useChangePasswordMutation();
+  const updateTimezoneMutation = useUpdateTimezoneMutation();
+
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState("");
+  const [timezone] = useState("");
+
+  const currentTimezone = timezone || data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const handleSaveTimezone = () => {
+    updateTimezoneMutation.mutate(
+      { timezone: currentTimezone },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["auth"] });
+        },
+      },
+    );
+  };
+
+  const handleChangePassword = () => {
+    if (!currentPassword || !newPassword) return;
+    setPasswordMsg("");
+    changePasswordMutation.mutate(
+      { current_password: currentPassword, new_password: newPassword },
+      {
+        onSuccess: () => {
+          setPasswordMsg("Password changed successfully.");
+          setCurrentPassword("");
+          setNewPassword("");
+          setShowPasswordForm(false);
+        },
+        onError: () => {
+          setPasswordMsg("Failed to change password.");
+        },
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -75,8 +121,14 @@ const SettingsPage = () => {
                   </div>
                   <button
                     type="button"
-                    className="rounded-[0.125rem] bg-primary px-[2.4rem] py-[1rem] font-semibold text-on-primary shadow-md transition-colors hover:bg-primary-container active:scale-95">
-                    Save Changes
+                    onClick={handleSaveTimezone}
+                    disabled={updateTimezoneMutation.isPending}
+                    className="rounded-[0.125rem] bg-primary px-[2.4rem] py-[1rem] font-semibold text-on-primary shadow-md transition-colors hover:bg-primary-container active:scale-95 disabled:opacity-50">
+                    {updateTimezoneMutation.isPending
+                      ? "Saving..."
+                      : updateTimezoneMutation.isSuccess
+                        ? "Saved!"
+                        : "Save Changes"}
                   </button>
                 </div>
 
@@ -130,21 +182,51 @@ const SettingsPage = () => {
                   Security & Access
                 </h3>
                 <div className="space-y-[1.6rem]">
-                  <div className="group flex cursor-pointer items-center justify-between rounded-[0.25rem] bg-surface-container p-[1.6rem] transition-colors hover:bg-surface-bright">
-                    <div className="flex items-center gap-[1.6rem]">
-                      <PasskeyIcon size="2.4rem" fill="#9fd0cd" />
-                      <div>
-                        <p className="text-[1.4rem] font-medium text-on-surface">
-                          Change Password
-                        </p>
-                        <p className="text-[1.2rem] text-secondary/60">
-                          Last updated 3 months ago
-                        </p>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordForm(prev => !prev)}
+                      className="group flex w-full cursor-pointer items-center justify-between rounded-[0.25rem] bg-surface-container p-[1.6rem] transition-colors hover:bg-surface-bright">
+                      <div className="flex items-center gap-[1.6rem]">
+                        <PasskeyIcon size="2.4rem" fill="#9fd0cd" />
+                        <div className="text-left">
+                          <p className="text-[1.4rem] font-medium text-on-surface">
+                            Change Password
+                          </p>
+                          <p className="text-[1.2rem] text-secondary/60">
+                            {passwordMsg || "Click to change your password"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-secondary/40 transition-colors group-hover:text-primary">
-                      ›
-                    </span>
+                      <span className="text-secondary/40 transition-colors group-hover:text-primary">
+                        {showPasswordForm ? "‹" : "›"}
+                      </span>
+                    </button>
+                    {showPasswordForm && (
+                      <div className="mt-[0.8rem] space-y-[1.2rem] rounded-[0.25rem] bg-surface-container p-[1.6rem]">
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={e => setCurrentPassword(e.target.value)}
+                          placeholder="Current password"
+                          className="w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-highest px-[1.2rem] py-[0.8rem] text-[1.3rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none"
+                        />
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          placeholder="New password"
+                          className="w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-highest px-[1.2rem] py-[0.8rem] text-[1.3rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleChangePassword}
+                          disabled={!currentPassword || !newPassword || changePasswordMutation.isPending}
+                          className="rounded-[0.25rem] bg-primary px-[1.6rem] py-[0.8rem] text-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 disabled:opacity-50">
+                          {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="group flex cursor-pointer items-center justify-between rounded-[0.25rem] bg-surface-container p-[1.6rem] transition-colors hover:bg-surface-bright">
                     <div className="flex items-center gap-[1.6rem]">

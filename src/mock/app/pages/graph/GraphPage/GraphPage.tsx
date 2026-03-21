@@ -17,11 +17,14 @@ import {
   ZoomOutIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useDeleteEntityMutation from "@/mock/lib/apis/mutations/graph/useDeleteEntityMutation/useDeleteEntityMutation";
 import useEntityDetailQuery from "@/mock/lib/apis/queries/graph/useEntityDetailQuery/useEntityDetailQuery";
+import useEntityMentionsQuery from "@/mock/lib/apis/queries/graph/useEntityMentionsQuery/useEntityMentionsQuery";
 import useEntityNeighborsQuery from "@/mock/lib/apis/queries/graph/useEntityNeighborsQuery/useEntityNeighborsQuery";
 import useGraphStatsQuery from "@/mock/lib/apis/queries/graph/useGraphStatsQuery/useGraphStatsQuery";
 import useGraphVisualizationQuery from "@/mock/lib/apis/queries/graph/useGraphVisualizationQuery/useGraphVisualizationQuery";
 import type { GraphNode } from "@/mock/lib/apis/queries/graph/useGraphVisualizationQuery/useGraphVisualizationQuery.type";
+import { useQueryClient } from "@tanstack/react-query";
 
 const MAX_NODES = 20;
 
@@ -47,12 +50,27 @@ const computeNodePositions = (
 };
 
 const GraphPage = () => {
+  const queryClient = useQueryClient();
   const [selectedUid, setSelectedUid] = useState<string>("");
 
   const { data: vizData, isLoading: isVizLoading } = useGraphVisualizationQuery(MAX_NODES);
   const { data: statsData } = useGraphStatsQuery();
   const { data: entityDetail, isLoading: isDetailLoading } = useEntityDetailQuery(selectedUid);
   const { data: neighborsData } = useEntityNeighborsQuery({ uid: selectedUid });
+  const { data: mentionsData } = useEntityMentionsQuery(selectedUid);
+  const deleteEntityMutation = useDeleteEntityMutation();
+
+  const handleDeleteEntity = () => {
+    if (!selectedUid || !window.confirm("Delete this entity?")) return;
+    deleteEntityMutation.mutate(selectedUid, {
+      onSuccess: () => {
+        setSelectedUid("");
+        queryClient.invalidateQueries({ queryKey: ["graph"] });
+      },
+    });
+  };
+
+  const mentions = mentionsData?.mentions ?? [];
   const neighborIds = new Set(neighborsData?.nodes.map(n => n.id) ?? []);
 
   const nodes = vizData?.nodes.slice(0, MAX_NODES) ?? [];
@@ -64,8 +82,6 @@ const GraphPage = () => {
   const handleNodeClick = (nodeId: string) => {
     setSelectedUid(nodeId);
   };
-
-  const selectedNode = nodes.find(n => n.id === selectedUid);
 
   return (
     <GlobalLayout
@@ -344,19 +360,42 @@ const GraphPage = () => {
                   </div>
                 )}
 
-                {entityDetail.related_entities.length === 0 && entityDetail.notes.length === 0 && (
+                {/* Mentions */}
+                {mentions.length > 0 && (
+                  <div className="mb-[3.2rem]">
+                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">
+                      Mentions
+                    </h4>
+                    <div className="space-y-[1.2rem]">
+                      {mentions.map(mention => (
+                        <div
+                          key={`${mention.note_number}-${mention.created_at}`}
+                          className="rounded-[0.25rem] border border-outline-variant/10 bg-surface-container-highest/50 p-[1.2rem]">
+                          <p className="text-[1.2rem] font-medium text-on-surface">
+                            {mention.title ?? `Note #${mention.note_number}`}
+                          </p>
+                          <p className="mt-[0.4rem] text-[1.1rem] text-on-surface-variant line-clamp-2">
+                            {mention.context}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {entityDetail.related_entities.length === 0 && entityDetail.notes.length === 0 && mentions.length === 0 && (
                   <p className="text-[1.4rem] text-on-surface-variant">
-                    No relationships or linked notes found.
+                    No relationships, linked notes, or mentions found.
                   </p>
                 )}
 
-                {selectedNode && (
-                  <button
-                    type="button"
-                    className="mt-[4rem] w-full rounded-[0.25rem] border border-outline-variant/20 py-[1.2rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-primary transition-colors hover:bg-primary/5">
-                    Expand Full Editor
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleDeleteEntity}
+                  disabled={deleteEntityMutation.isPending}
+                  className="mt-[4rem] w-full rounded-[0.25rem] border border-error/30 py-[1.2rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-error transition-colors hover:bg-error/10 disabled:opacity-50">
+                  {deleteEntityMutation.isPending ? "Deleting..." : "Delete Entity"}
+                </button>
               </>
             )}
           </div>
