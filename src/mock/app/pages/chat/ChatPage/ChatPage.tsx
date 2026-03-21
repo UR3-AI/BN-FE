@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DeleteIcon, SparklesIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
-import useChatMutation from "@/mock/lib/apis/mutations/chat/useChatMutation/useChatMutation";
+import type { ChatSourceNote } from "@/mock/lib/apis/mutations/chat/useChatMutation/useChatMutation.type";
 import useDeleteChatSessionMutation from "@/mock/lib/apis/mutations/chat/useDeleteChatSessionMutation/useDeleteChatSessionMutation";
 import useChatSessionDetailQuery from "@/mock/lib/apis/queries/chat/useChatSessionDetailQuery/useChatSessionDetailQuery";
 import useChatSessionsQuery from "@/mock/lib/apis/queries/chat/useChatSessionsQuery/useChatSessionsQuery";
+import useAuthStore from "@lib/stores/useAuthStore/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
 
 const formatTimeAgo = (dateString: string) => {
@@ -20,31 +21,124 @@ const formatTimeAgo = (dateString: string) => {
 
 const ChatPage = () => {
   const queryClient = useQueryClient();
+  const accessToken = useAuthStore(s => s.accessToken);
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [message, setMessage] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const [streamingSources, setStreamingSources] = useState<ChatSourceNote[]>([]);
+  const [streamError, setStreamError] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: sessionsData, isLoading: isSessionsLoading } = useChatSessionsQuery();
   const { data: sessionDetail } = useChatSessionDetailQuery(selectedSessionId);
-  const chatMutation = useChatMutation();
   const deleteMutation = useDeleteChatSessionMutation();
 
   const sessions = sessionsData?.items ?? [];
   const messages = sessionDetail?.messages ?? [];
 
-  const handleSendMessage = () => {
-    const trimmed = message.trim();
-    if (!trimmed || chatMutation.isPending) return;
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
-    chatMutation.mutate(
-      { message: trimmed, session_id: selectedSessionId || undefined },
-      {
-        onSuccess: data => {
-          setMessage("");
-          setSelectedSessionId(data.session_id);
-          queryClient.invalidateQueries({ queryKey: ["chat"] });
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages.length, streamingText, scrollToBottom]);
+
+  const handleSendMessage = async () => {
+    const trimmed = message.trim();
+    if (!trimmed || isStreaming) return;
+
+    setMessage("");
+    setIsStreaming(true);
+    setStreamingText("");
+    setStreamingSources([]);
+    setStreamError("");
+
+    try {
+      // Ensure fresh token before SSE (bypasses Axios interceptor)
+      let token = accessToken;
+      const { expiresAt, refreshToken, clearTokens } = useAuthStore.getState();
+      if (expiresAt && Date.now() > expiresAt - 60_000 && refreshToken) {
+        try {
+          const { default: refreshTokenAsync } = await import(
+            "@lib/apis/services/auth/refreshTokenAsync/refreshTokenAsync"
+          );
+          const refreshed = await refreshTokenAsync(refreshToken);
+          useAuthStore.getState().setTokens(refreshed.access_token, refreshed.refresh_token, refreshed.expires_in);
+          token = refreshed.access_token;
+        } catch {
+          clearTokens();
+          return;
+        }
+      }
+
+      const response = await fetch("/api/v1/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-      },
-    );
+        body: JSON.stringify({
+          message: trimmed,
+          session_id: selectedSessionId || undefined,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              switch (currentEvent) {
+                case "session":
+                  setSelectedSessionId(data.session_id);
+                  break;
+                case "sources":
+                  setStreamingSources(data.notes ?? []);
+                  break;
+                case "token":
+                  setStreamingText(prev => prev + data.text);
+                  break;
+                case "completed":
+                  await queryClient.invalidateQueries({ queryKey: ["chat"] });
+                  break;
+                case "failed":
+                  setStreamError(data.error ?? "An error occurred");
+                  break;
+              }
+            } catch {
+              // Skip malformed SSE data lines
+            }
+            currentEvent = "";
+          }
+        }
+      }
+    } catch (err) {
+      setStreamError(err instanceof Error ? err.message : "Connection failed");
+    } finally {
+      setIsStreaming(false);
+      setStreamingText("");
+      setStreamingSources([]);
+    }
   };
 
   const handleDeleteSession = (sessionId: string) => {
@@ -65,6 +159,8 @@ const ChatPage = () => {
       handleSendMessage();
     }
   };
+
+  const showStreamingBubble = isStreaming || streamingText;
 
   return (
     <GlobalLayout breadcrumb={[{ label: "Chat", active: true }]}>
@@ -140,7 +236,7 @@ const ChatPage = () => {
         <div className="flex flex-1 flex-col">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-[3.2rem] py-[3.2rem]">
-            {messages.length === 0 ? (
+            {messages.length === 0 && !showStreamingBubble ? (
               <div className="flex h-full flex-col items-center justify-center gap-[1.6rem]">
                 <SparklesIcon
                   size="4.8rem"
@@ -165,6 +261,17 @@ const ChatPage = () => {
                       <p className="whitespace-pre-wrap text-[1.4rem] leading-relaxed">
                         {msg.content}
                       </p>
+                      {msg.role === "assistant" && msg.sources.length > 0 && (
+                        <div className="mt-[0.8rem] flex flex-wrap gap-[0.6rem] border-t border-outline-variant/10 pt-[0.8rem]">
+                          {msg.sources.map(src => (
+                            <span
+                              key={src.note_number}
+                              className="rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary">
+                              Note #{src.note_number}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <span
                         className={`mt-[0.4rem] block text-[1rem] ${
                           msg.role === "user" ? "text-on-primary/60" : "text-outline"
@@ -174,13 +281,43 @@ const ChatPage = () => {
                     </div>
                   </div>
                 ))}
-                {chatMutation.isPending && (
+
+                {/* Streaming assistant response */}
+                {showStreamingBubble && (
                   <div className="flex justify-start">
-                    <div className="rounded-[0.75rem] bg-surface-container px-[1.6rem] py-[1.2rem]">
-                      <p className="text-[1.4rem] text-on-surface-variant">Thinking...</p>
+                    <div className="max-w-[80%] rounded-[0.75rem] bg-surface-container px-[1.6rem] py-[1.2rem] text-on-surface">
+                      {streamingText ? (
+                        <p className="whitespace-pre-wrap text-[1.4rem] leading-relaxed">
+                          {streamingText}
+                          <span className="inline-block h-[1.4rem] w-[0.2rem] animate-pulse bg-primary" />
+                        </p>
+                      ) : (
+                        <p className="text-[1.4rem] text-on-surface-variant">Thinking...</p>
+                      )}
+                      {streamingSources.length > 0 && (
+                        <div className="mt-[0.8rem] flex flex-wrap gap-[0.6rem] border-t border-outline-variant/10 pt-[0.8rem]">
+                          {streamingSources.map(src => (
+                            <span
+                              key={src.note_number}
+                              className="rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary">
+                              Note #{src.note_number}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
+
+                {streamError && (
+                  <div className="flex justify-start">
+                    <div className="rounded-[0.75rem] bg-error-container/20 px-[1.6rem] py-[1.2rem]">
+                      <p className="text-[1.4rem] text-error">{streamError}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>
@@ -200,9 +337,9 @@ const ChatPage = () => {
               <button
                 type="button"
                 onClick={handleSendMessage}
-                disabled={!message.trim() || chatMutation.isPending}
+                disabled={!message.trim() || isStreaming}
                 className="shrink-0 rounded-[0.375rem] bg-primary px-[2rem] py-[1.2rem] text-[1.3rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
-                {chatMutation.isPending ? "Sending..." : "Send"}
+                {isStreaming ? "Sending..." : "Send"}
               </button>
             </div>
           </div>

@@ -24,7 +24,7 @@ const SettingsPage = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
-  const [timezone] = useState("");
+  const [timezone, setTimezone] = useState("");
 
   const currentTimezone = timezone || data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -159,7 +159,27 @@ const SettingsPage = () => {
                       className="w-full rounded-t-[0.125rem] border-0 border-b-2 border-outline-variant/20 bg-surface-container-highest px-[1.6rem] py-[1.2rem] text-on-surface transition-all focus:border-primary focus:outline-none focus:ring-0"
                     />
                   </div>
-                  <div className="space-y-[0.8rem] md:col-span-2">
+                  <div className="space-y-[0.8rem]">
+                    <label
+                      htmlFor="settings-timezone"
+                      className="pl-[0.4rem] text-[1.2rem] font-semibold uppercase tracking-[0.15em] text-secondary">
+                      Timezone
+                    </label>
+                    <select
+                      id="settings-timezone"
+                      value={currentTimezone}
+                      onChange={e => setTimezone(e.target.value)}
+                      className="w-full rounded-t-[0.125rem] border-0 border-b-2 border-outline-variant/20 bg-surface-container-highest px-[1.6rem] py-[1.2rem] text-on-surface transition-all focus:border-primary focus:outline-none focus:ring-0">
+                      {Intl.supportedValuesOf("timeZone").map(tz => (
+                        <option
+                          key={tz}
+                          value={tz}>
+                          {tz}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-[0.8rem]">
                     <label
                       htmlFor="settings-bio"
                       className="pl-[0.4rem] text-[1.2rem] font-semibold uppercase tracking-[0.15em] text-secondary">

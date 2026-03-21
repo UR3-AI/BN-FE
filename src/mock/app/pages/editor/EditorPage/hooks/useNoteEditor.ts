@@ -79,7 +79,11 @@ const useNoteEditor = ({
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      if (pendingContentRef.current !== null && noteNumberRef.current > 0) {
+        save(pendingContentRef.current, noteNumberRef.current);
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { content, saveStatus, onContentChange, flush };
