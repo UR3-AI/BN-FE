@@ -69,10 +69,12 @@ const EditorPage = () => {
   };
 
   const handleDeleteNote = (noteNumber: number) => {
+    if (!window.confirm("Are you sure you want to delete this note?")) return;
+    const wasSelected = selectedNoteNumber === noteNumber;
     deleteNoteMutation.mutate(noteNumber, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["notes"] });
-        if (selectedNoteNumber === noteNumber) {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: ["notes"] });
+        if (wasSelected) {
           setSelectedNoteNumber(0);
         }
       },
