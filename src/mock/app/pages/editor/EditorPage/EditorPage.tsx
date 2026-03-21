@@ -1,8 +1,12 @@
 import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
 import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 
-import { LinkIcon } from "@/mock/app/components/Icons";
+import { useEffect, useRef, useState } from "react";
+
+import { CloseIcon, LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useAddTagsMutation from "@/mock/lib/apis/mutations/tags/useAddTagsMutation/useAddTagsMutation";
+import useRemoveTagsMutation from "@/mock/lib/apis/mutations/tags/useRemoveTagsMutation/useRemoveTagsMutation";
 import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
 import useDeleteNoteMutation from "@/mock/lib/apis/mutations/notes/useDeleteNoteMutation/useDeleteNoteMutation";
 import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
@@ -10,6 +14,7 @@ import useReprocessNoteMutation from "@/mock/lib/apis/mutations/notes/useReproce
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
+import useAuthStore from "@lib/stores/useAuthStore/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
 
 import AISidePanel from "./components/AISidePanel";
@@ -23,6 +28,16 @@ const EditorPage = () => {
   const pinNoteMutation = usePinNoteMutation();
   const deleteNoteMutation = useDeleteNoteMutation();
   const reprocessMutation = useReprocessNoteMutation();
+  const addTagsMutation = useAddTagsMutation();
+  const removeTagsMutation = useRemoveTagsMutation();
+  const [tagInput, setTagInput] = useState("");
+  const sseAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      sseAbortRef.current?.abort();
+    };
+  }, []);
 
   const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
     useEditorNote();
@@ -51,6 +66,45 @@ const EditorPage = () => {
   const isLoading =
     isNotesLoading || (hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading));
 
+  const subscribeNoteStream = async (noteNumber: number) => {
+    sseAbortRef.current?.abort();
+    const controller = new AbortController();
+    sseAbortRef.current = controller;
+
+    try {
+      const token = useAuthStore.getState().accessToken;
+      const response = await fetch(`/api/v1/notes/${noteNumber}/stream`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) return;
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        if (lines.some(l => l.startsWith("event: completed") || l.startsWith("event: failed"))) {
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+          break;
+        }
+      }
+    } catch {
+      // aborted or network error — ignore
+    } finally {
+      if (sseAbortRef.current === controller) {
+        sseAbortRef.current = null;
+      }
+    }
+  };
+
   const handleCreateNote = () => {
     createNoteMutation.mutate(
       { content: "New note created from editor" },
@@ -58,6 +112,7 @@ const EditorPage = () => {
         onSuccess: data => {
           queryClient.invalidateQueries({ queryKey: ["notes"] });
           setSelectedNoteNumber(data.note_number);
+          subscribeNoteStream(data.note_number);
         },
       },
     );
@@ -166,6 +221,51 @@ const EditorPage = () => {
     });
   };
 
+  const handleAddTag = () => {
+    const tag = tagInput.trim();
+    if (!tag || selectedNoteNumber <= 0) return;
+    addTagsMutation.mutate(
+      { noteNumber: selectedNoteNumber, tags: [tag] },
+      {
+        onSuccess: () => {
+          setTagInput("");
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+        },
+      },
+    );
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    if (selectedNoteNumber <= 0) return;
+    removeTagsMutation.mutate(
+      { noteNumber: selectedNoteNumber, tags: [tag] },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+        },
+      },
+    );
+  };
+
+  const handleExport = async (format: "markdown" | "pdf") => {
+    const response = await fetch(
+      `/api/v1/notes/${selectedNoteNumber}/export?format=${format}`,
+      {
+        headers: {
+          Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
+        },
+      },
+    );
+    if (!response.ok) return;
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `note-${selectedNoteNumber}.${format === "markdown" ? "md" : "pdf"}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <GlobalLayout
       breadcrumb={[
@@ -215,8 +315,17 @@ const EditorPage = () => {
               {noteDetail.tags.map(tag => (
                 <span
                   key={tag}
-                  className="rounded-full border border-outline-variant/10 bg-surface-container px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary">
+                  className="group/tag flex items-center gap-[0.4rem] rounded-full border border-outline-variant/10 bg-surface-container px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary">
                   #{tag}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    className="opacity-0 transition-opacity group-hover/tag:opacity-100">
+                    <CloseIcon
+                      size="1.2rem"
+                      stroke="currentColor"
+                    />
+                  </button>
                 </span>
               ))}
               <span className="text-[1.1rem] italic text-outline">
@@ -228,6 +337,33 @@ const EditorPage = () => {
                       ? "Save failed"
                       : `Modified ${noteDetail.updated_at}`}
               </span>
+            </div>
+            <div className="mb-[1.6rem] flex items-center gap-[1.2rem]">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Add tag..."
+                className="w-[16rem] rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-low px-[1.2rem] py-[0.4rem] text-[1.1rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => handleExport("markdown")}
+                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container">
+                Export MD
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExport("pdf")}
+                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container">
+                Export PDF
+              </button>
             </div>
             <h1 className="mb-[3.2rem] font-headline text-[5rem] font-extrabold leading-tight tracking-tighter text-on-surface">
               {noteDetail.title ?? "Untitled"}

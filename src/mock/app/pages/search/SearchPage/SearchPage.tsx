@@ -5,7 +5,10 @@ import {
   ArrowOutwardIcon,
   BubbleChartIcon,
   ChecklistIcon,
+  CloseIcon,
+  DeleteIcon,
   DescriptionIcon,
+  EditIcon,
   EditorIcon,
   ExpandMoreIcon,
   GraphIcon,
@@ -14,8 +17,11 @@ import {
   SparklesIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useDeleteTagMutation from "@/mock/lib/apis/mutations/tags/useDeleteTagMutation/useDeleteTagMutation";
+import useRenameTagMutation from "@/mock/lib/apis/mutations/tags/useRenameTagMutation/useRenameTagMutation";
 import useSearchQuery from "@/mock/lib/apis/queries/search/useSearchQuery/useSearchQuery";
 import useTagsQuery from "@/mock/lib/apis/queries/search/useTagsQuery/useTagsQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SearchPage = () => {
   const [inputValue, setInputValue] = useState("");
@@ -330,6 +336,40 @@ const SearchPage = () => {
 
 /** 검색 필터 사이드 패널 */
 const FilterSidePanel = ({ tags }: { tags: { tag: string; count: number }[] }) => {
+  const queryClient = useQueryClient();
+  const renameMutation = useRenameTagMutation();
+  const deleteMutation = useDeleteTagMutation();
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const handleRename = (oldName: string) => {
+    const newName = renameValue.trim();
+    if (!newName || newName === oldName) {
+      setEditingTag(null);
+      return;
+    }
+    renameMutation.mutate(
+      { old_name: oldName, new_name: newName },
+      {
+        onSuccess: () => {
+          setEditingTag(null);
+          queryClient.invalidateQueries({ queryKey: ["search"] });
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+        },
+      },
+    );
+  };
+
+  const handleDelete = (tagName: string) => {
+    if (!window.confirm(`Delete tag "${tagName}" from all notes?`)) return;
+    deleteMutation.mutate(tagName, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["search"] });
+        queryClient.invalidateQueries({ queryKey: ["notes"] });
+      },
+    });
+  };
+
   return (
     <div className="flex h-full flex-col gap-[3.2rem] px-[2.4rem] py-[3.2rem]">
       <div>
@@ -394,13 +434,67 @@ const FilterSidePanel = ({ tags }: { tags: { tag: string; count: number }[] }) =
             <span className="mb-[1.2rem] block font-headline text-[1rem] uppercase tracking-[0.2em] text-outline">
               Tags
             </span>
-            <div className="flex flex-wrap gap-[0.8rem]">
+            <div className="space-y-[0.8rem]">
               {tags.map(({ tag, count }) => (
-                <span
+                <div
                   key={tag}
-                  className="rounded-full border border-outline-variant/10 bg-surface-container px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary">
-                  {tag} <span className="text-outline">({count})</span>
-                </span>
+                  className="group flex items-center justify-between">
+                  {editingTag === tag ? (
+                    <div className="flex flex-1 items-center gap-[0.4rem]">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleRename(tag);
+                          if (e.key === "Escape") setEditingTag(null);
+                        }}
+                        autoFocus
+                        className="w-full rounded-[0.25rem] border border-primary/50 bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1.1rem] text-on-surface focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditingTag(null)}
+                        className="text-outline hover:text-on-surface">
+                        <CloseIcon
+                          size="1.2rem"
+                          stroke="currentColor"
+                        />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-[1.1rem] font-medium text-secondary">
+                        {tag} <span className="text-outline">({count})</span>
+                      </span>
+                      <div className="flex gap-[0.2rem] opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTag(tag);
+                            setRenameValue(tag);
+                          }}
+                          className="rounded-[0.25rem] p-[0.2rem] text-outline hover:text-primary"
+                          title="Rename">
+                          <EditIcon
+                            size="1.2rem"
+                            fill="currentColor"
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(tag)}
+                          className="rounded-[0.25rem] p-[0.2rem] text-outline hover:text-error"
+                          title="Delete">
+                          <DeleteIcon
+                            size="1.2rem"
+                            fill="currentColor"
+                          />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ))}
             </div>
           </div>

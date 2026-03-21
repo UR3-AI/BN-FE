@@ -11,7 +11,7 @@ import {
   TreeIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
-import { useUpdateActionMutation } from "@/mock/lib/apis/mutations/actions";
+import { useExecuteActionMutation, useUpdateActionMutation } from "@/mock/lib/apis/mutations/actions";
 import type { ActionItemResponse } from "@/mock/lib/apis/mutations/actions/useUpdateActionMutation/useUpdateActionMutation.type";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
@@ -235,6 +235,8 @@ const TodosPage = () => {
 
   const queryClient = useQueryClient();
   const { mutate: updateAction } = useUpdateActionMutation();
+  const executeAction = useExecuteActionMutation();
+  const [executingActionId, setExecutingActionId] = useState<number | null>(null);
 
   const { data: notesData, isLoading: isNotesLoading } = useNotesQuery({ limit: 50 });
 
@@ -266,6 +268,18 @@ const TodosPage = () => {
   });
 
   const selectedEntry = allActions.find(({ action }) => action.id === selectedActionId) ?? null;
+
+  const handleExecuteResearch = (actionId: number) => {
+    setExecutingActionId(actionId);
+    executeAction.mutate(actionId, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["notes"] });
+      },
+      onSettled: () => {
+        setExecutingActionId(null);
+      },
+    });
+  };
 
   const handleCheckboxToggle = (action: ActionItemResponse) => {
     const newStatus = action.status === "completed" ? "pending" : "completed";
@@ -410,22 +424,33 @@ const TodosPage = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        aria-label="More options"
-                        onClick={e => e.stopPropagation()}
-                        className="rounded p-[0.8rem] hover:bg-surface-bright">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          width="2rem"
-                          height="2rem"
-                          fill="currentColor"
-                          className="text-on-surface/60">
-                          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                        </svg>
-                      </button>
+                    <div className="flex flex-shrink-0 items-center gap-[0.4rem] opacity-0 transition-opacity group-hover:opacity-100">
+                      {action.status !== "completed" && !action.research_status && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleExecuteResearch(action.id);
+                          }}
+                          disabled={executingActionId === action.id}
+                          className="flex items-center gap-[0.4rem] rounded-[0.25rem] px-[1.2rem] py-[0.6rem] text-[1.1rem] font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
+                          <SparklesIcon
+                            size="1.4rem"
+                            fill="currentColor"
+                          />
+                          Research
+                        </button>
+                      )}
+                      {action.research_status === "researching" && (
+                        <span className="px-[1.2rem] py-[0.6rem] text-[1.1rem] font-medium text-primary">
+                          Researching...
+                        </span>
+                      )}
+                      {action.research_status === "completed" && action.research_note_number !== null && (
+                        <span className="px-[1.2rem] py-[0.6rem] text-[1.1rem] font-medium text-secondary">
+                          Note #{action.research_note_number}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
