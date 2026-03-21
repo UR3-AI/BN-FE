@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import AISidePanel from "./components/AISidePanel";
 import NoteListPanel from "./components/NoteListPanel";
 import useEditorNote from "./hooks/useEditorNote";
+import useNoteEditor from "./hooks/useNoteEditor";
 
 const EditorPage = () => {
   const queryClient = useQueryClient();
@@ -24,6 +25,16 @@ const EditorPage = () => {
 
   const { data: noteDetail, isLoading: isDetailLoading } =
     useNoteDetailQuery(selectedNoteNumber);
+
+  const { content, saveStatus, onContentChange, flush } = useNoteEditor({
+    noteDetail,
+    noteNumber: selectedNoteNumber,
+  });
+
+  const handleSelectNote = (noteNumber: number) => {
+    flush();
+    setSelectedNoteNumber(noteNumber);
+  };
 
   const { data: relatedNotesData, isLoading: isRelatedLoading } =
     useRelatedNotesQuery(selectedNoteNumber);
@@ -65,7 +76,7 @@ const EditorPage = () => {
           <NoteListPanel
             notes={[]}
             selectedNoteNumber={0}
-            onSelectNote={setSelectedNoteNumber}
+            onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
             isCreating={createNoteMutation.isPending}
           />
@@ -93,7 +104,7 @@ const EditorPage = () => {
           <NoteListPanel
             notes={notes}
             selectedNoteNumber={0}
-            onSelectNote={setSelectedNoteNumber}
+            onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
             isCreating={createNoteMutation.isPending}
           />
@@ -134,7 +145,7 @@ const EditorPage = () => {
         <NoteListPanel
           notes={notes}
           selectedNoteNumber={selectedNoteNumber}
-          onSelectNote={setSelectedNoteNumber}
+          onSelectNote={handleSelectNote}
           onCreateNote={handleCreateNote}
           isCreating={createNoteMutation.isPending}
         />
@@ -155,7 +166,13 @@ const EditorPage = () => {
                 </span>
               ))}
               <span className="text-[1.1rem] italic text-outline">
-                Modified {noteDetail.updated_at}
+                {saveStatus === "saving"
+                  ? "Saving..."
+                  : saveStatus === "saved"
+                    ? "Saved"
+                    : saveStatus === "error"
+                      ? "Save failed"
+                      : `Modified ${noteDetail.updated_at}`}
               </span>
             </div>
             <h1 className="mb-[3.2rem] font-headline text-[5rem] font-extrabold leading-tight tracking-tighter text-on-surface">
@@ -164,17 +181,13 @@ const EditorPage = () => {
           </div>
 
           {/* Article Content */}
-          <article>
-            <div className="space-y-[2.4rem] font-body text-[2rem] leading-relaxed text-on-surface/90">
-              {noteDetail.content ? (
-                noteDetail.content.split("\n\n").map((paragraph, index) => (
-                  <p key={index}>{paragraph}</p>
-                ))
-              ) : (
-                <p className="text-on-surface-variant">No content yet.</p>
-              )}
-            </div>
-          </article>
+          <textarea
+            value={content}
+            onChange={e => onContentChange(e.target.value)}
+            placeholder="Start writing..."
+            className="w-full flex-1 resize-none bg-transparent font-body text-[2rem] leading-relaxed text-on-surface/90 outline-none placeholder:text-on-surface-variant"
+            style={{ minHeight: "40rem", fieldSizing: "content" as never }}
+          />
 
           {/* Cognitive Associations */}
           {relatedNotes.length > 0 && (
