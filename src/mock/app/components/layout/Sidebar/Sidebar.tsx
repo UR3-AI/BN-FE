@@ -5,6 +5,7 @@ import {
   ChecklistIcon,
   DashboardIcon,
   EditorIcon,
+  FolderIcon,
   GraphIcon,
   HelpIcon,
   PlusCircleIcon,
@@ -18,6 +19,7 @@ const mainNav = [
   { label: "Knowledge Graph", path: "/graph", icon: GraphIcon },
   { label: "To-Dos", path: "/todos", icon: ChecklistIcon },
   { label: "Chat", path: "/chat", icon: SparklesIcon },
+  { label: "Projects", path: "/projects", icon: FolderIcon },
   { label: "Settings", path: "/settings", icon: SettingsIcon },
 ];
 
