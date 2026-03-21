@@ -10,6 +10,8 @@ import {
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useChangePasswordMutation from "@/mock/lib/apis/mutations/auth/useChangePasswordMutation/useChangePasswordMutation";
+import useRegisterDeviceMutation from "@/mock/lib/apis/mutations/notifications/useRegisterDeviceMutation/useRegisterDeviceMutation";
+import useUnregisterDeviceMutation from "@/mock/lib/apis/mutations/notifications/useUnregisterDeviceMutation/useUnregisterDeviceMutation";
 import useUpdateTimezoneMutation from "@/mock/lib/apis/mutations/users/useUpdateTimezoneMutation/useUpdateTimezoneMutation";
 import useMeQuery from "@/mock/lib/apis/queries/auth/useMeQuery/useMeQuery";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,11 +22,16 @@ const SettingsPage = () => {
   const changePasswordMutation = useChangePasswordMutation();
   const updateTimezoneMutation = useUpdateTimezoneMutation();
 
+  const registerDeviceMutation = useRegisterDeviceMutation();
+  const unregisterDeviceMutation = useUnregisterDeviceMutation();
+
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
   const [timezone, setTimezone] = useState("");
+  const [deviceRegistered, setDeviceRegistered] = useState(false);
+  const [deviceMsg, setDeviceMsg] = useState("");
 
   const currentTimezone = timezone || data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -306,6 +313,55 @@ const SettingsPage = () => {
                         </button>
                       </div>
                     ))}
+                    <div className="mt-[1.2rem] border-t border-outline-variant/10 pt-[1.6rem]">
+                      {!deviceRegistered ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeviceMsg("");
+                            registerDeviceMutation.mutate(
+                              { fcm_token: "mock-fcm-token-placeholder", device_type: "web" },
+                              {
+                                onSuccess: () => {
+                                  setDeviceRegistered(true);
+                                  setDeviceMsg("Device registered for push notifications.");
+                                },
+                                onError: () => {
+                                  setDeviceMsg("Failed to register device.");
+                                },
+                              },
+                            );
+                          }}
+                          disabled={registerDeviceMutation.isPending}
+                          className="w-full rounded-[0.25rem] bg-primary px-[1.6rem] py-[0.8rem] text-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
+                          {registerDeviceMutation.isPending ? "Registering..." : "Register This Device"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeviceMsg("");
+                            unregisterDeviceMutation.mutate(undefined, {
+                              onSuccess: () => {
+                                setDeviceRegistered(false);
+                                setDeviceMsg("Device unregistered.");
+                              },
+                              onError: () => {
+                                setDeviceMsg("Failed to unregister device.");
+                              },
+                            });
+                          }}
+                          disabled={unregisterDeviceMutation.isPending}
+                          className="w-full rounded-[0.25rem] border border-outline-variant/20 px-[1.6rem] py-[0.8rem] text-[1.2rem] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50">
+                          {unregisterDeviceMutation.isPending ? "Unregistering..." : "Unregister Device"}
+                        </button>
+                      )}
+                      {deviceMsg && (
+                        <p className={`mt-[0.8rem] text-[1.1rem] ${registerDeviceMutation.isError || unregisterDeviceMutation.isError ? "text-error" : "text-secondary"}`}>
+                          {deviceMsg}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Email Digests */}
