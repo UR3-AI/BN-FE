@@ -7,6 +7,7 @@ interface NoteListPanelProps {
   selectedNoteNumber: number;
   onSelectNote: (noteNumber: number) => void;
   onCreateNote: () => void;
+  onPinToggle: (noteNumber: number, pinned: boolean) => void;
   isCreating: boolean;
 }
 
@@ -30,6 +31,7 @@ const NoteListPanel = ({
   selectedNoteNumber,
   onSelectNote,
   onCreateNote,
+  onPinToggle,
   isCreating,
 }: NoteListPanelProps) => {
   const pinnedNotes = notes.filter(n => n.is_pinned);
@@ -75,6 +77,7 @@ const NoteListPanel = ({
                 note={note}
                 isSelected={note.note_number === selectedNoteNumber}
                 onSelect={onSelectNote}
+                onPinToggle={onPinToggle}
               />
             ))}
           </div>
@@ -94,6 +97,7 @@ const NoteListPanel = ({
                 note={note}
                 isSelected={note.note_number === selectedNoteNumber}
                 onSelect={onSelectNote}
+                onPinToggle={onPinToggle}
               />
             ))}
           </div>
@@ -113,32 +117,53 @@ interface NoteItemProps {
   note: NoteListItem;
   isSelected: boolean;
   onSelect: (noteNumber: number) => void;
+  onPinToggle: (noteNumber: number, pinned: boolean) => void;
 }
 
-const NoteItem = ({ note, isSelected, onSelect }: NoteItemProps) => {
+const NoteItem = ({ note, isSelected, onSelect, onPinToggle }: NoteItemProps) => {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(note.note_number)}
-      className={`w-full cursor-pointer px-[1.6rem] py-[1.2rem] text-left transition-colors hover:bg-surface-container ${
+    <div
+      className={`group relative w-full cursor-pointer px-[1.6rem] py-[1.2rem] text-left transition-colors hover:bg-surface-container ${
         isSelected
           ? "border-l-2 border-primary bg-surface-container-highest"
           : "border-l-2 border-transparent"
       }`}>
-      <p className="truncate text-[1.3rem] font-semibold text-on-surface">
-        {note.title ?? "Untitled"}
-      </p>
-      <div className="mt-[0.4rem] flex items-center gap-[0.8rem]">
-        <span className="text-[1rem] text-on-surface-variant">
-          {formatRelativeTime(note.created_at)}
-        </span>
-        {note.tags.length > 0 && (
-          <span className="text-[1rem] text-outline">
-            {note.tags.length} tag{note.tags.length > 1 ? "s" : ""}
+      <button
+        type="button"
+        onClick={() => onSelect(note.note_number)}
+        className="w-full text-left">
+        <p className="truncate pr-[2.4rem] text-[1.3rem] font-semibold text-on-surface">
+          {note.title ?? "Untitled"}
+        </p>
+        <div className="mt-[0.4rem] flex items-center gap-[0.8rem]">
+          <span className="text-[1rem] text-on-surface-variant">
+            {formatRelativeTime(note.created_at)}
           </span>
-        )}
-      </div>
-    </button>
+          {note.tags.length > 0 && (
+            <span className="text-[1rem] text-outline">
+              {note.tags.length} tag{note.tags.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation();
+          onPinToggle(note.note_number, !note.is_pinned);
+        }}
+        className={`absolute top-[1.2rem] right-[1.2rem] rounded-[0.25rem] p-[0.4rem] transition-all ${
+          note.is_pinned
+            ? "text-primary opacity-100"
+            : "text-on-surface-variant opacity-0 group-hover:opacity-100"
+        } hover:bg-surface-container-high`}
+        title={note.is_pinned ? "Unpin" : "Pin"}>
+        <PushPinIcon
+          size="1.4rem"
+          fill="currentColor"
+        />
+      </button>
+    </div>
   );
 };
 

@@ -4,6 +4,7 @@ import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQ
 import { LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
+import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
@@ -17,6 +18,7 @@ import useNoteEditor from "./hooks/useNoteEditor";
 const EditorPage = () => {
   const queryClient = useQueryClient();
   const createNoteMutation = useCreateNoteMutation();
+  const pinNoteMutation = usePinNoteMutation();
 
   const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
     useEditorNote();
@@ -57,6 +59,13 @@ const EditorPage = () => {
     );
   };
 
+  const handlePinToggle = (noteNumber: number, pinned: boolean) => {
+    pinNoteMutation.mutate(
+      { noteNumber, pinned },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }) },
+    );
+  };
+
   const relatedNotes: RelatedNote[] = relatedNotesData?.items ?? [];
   const actions: ActionItemResponse[] = noteActions ?? [];
 
@@ -78,6 +87,7 @@ const EditorPage = () => {
             selectedNoteNumber={0}
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
+            onPinToggle={handlePinToggle}
             isCreating={createNoteMutation.isPending}
           />
           <div className="flex flex-1 items-center justify-center">
@@ -106,6 +116,7 @@ const EditorPage = () => {
             selectedNoteNumber={0}
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
+            onPinToggle={handlePinToggle}
             isCreating={createNoteMutation.isPending}
           />
           <div className="flex flex-1 flex-col items-center justify-center gap-[2.4rem]">
@@ -147,6 +158,7 @@ const EditorPage = () => {
           selectedNoteNumber={selectedNoteNumber}
           onSelectNote={handleSelectNote}
           onCreateNote={handleCreateNote}
+          onPinToggle={handlePinToggle}
           isCreating={createNoteMutation.isPending}
         />
 
