@@ -18,12 +18,15 @@ import {
   SparklesIcon,
 } from "@/mock/app/components/Icons";
 import useSearchQuery from "@/mock/lib/apis/queries/search/useSearchQuery/useSearchQuery";
+import useTagsQuery from "@/mock/lib/apis/queries/search/useTagsQuery/useTagsQuery";
 
 const SearchPage = () => {
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data, isLoading } = useSearchQuery({ q: searchQuery });
+  const { data: tagsData } = useTagsQuery();
+  const tags = tagsData?.items ?? [];
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -158,6 +161,24 @@ const SearchPage = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Tags */}
+              {tags.length > 0 && (
+                <div className="mb-[3.2rem]">
+                  <span className="mb-[1.2rem] block font-headline text-[1rem] uppercase tracking-[0.2em] text-outline">
+                    Tags
+                  </span>
+                  <div className="flex flex-wrap gap-[0.8rem]">
+                    {tags.map(({ tag, count }) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-outline-variant/10 bg-surface-container px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary">
+                        {tag} <span className="text-outline">({count})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Search Depth */}
               <div className="mb-[3.2rem]">

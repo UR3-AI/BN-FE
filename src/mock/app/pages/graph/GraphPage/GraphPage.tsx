@@ -18,6 +18,7 @@ import {
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useEntityDetailQuery from "@/mock/lib/apis/queries/graph/useEntityDetailQuery/useEntityDetailQuery";
+import useEntityNeighborsQuery from "@/mock/lib/apis/queries/graph/useEntityNeighborsQuery/useEntityNeighborsQuery";
 import useGraphStatsQuery from "@/mock/lib/apis/queries/graph/useGraphStatsQuery/useGraphStatsQuery";
 import useGraphVisualizationQuery from "@/mock/lib/apis/queries/graph/useGraphVisualizationQuery/useGraphVisualizationQuery";
 import type { GraphNode } from "@/mock/lib/apis/queries/graph/useGraphVisualizationQuery/useGraphVisualizationQuery.type";
@@ -51,6 +52,8 @@ const GraphPage = () => {
   const { data: vizData, isLoading: isVizLoading } = useGraphVisualizationQuery(MAX_NODES);
   const { data: statsData } = useGraphStatsQuery();
   const { data: entityDetail, isLoading: isDetailLoading } = useEntityDetailQuery(selectedUid);
+  const { data: neighborsData } = useEntityNeighborsQuery({ uid: selectedUid });
+  const neighborIds = new Set(neighborsData?.nodes.map(n => n.id) ?? []);
 
   const nodes = vizData?.nodes.slice(0, MAX_NODES) ?? [];
   const edges = vizData?.edges ?? [];
@@ -151,6 +154,7 @@ const GraphPage = () => {
             if (!pos) return null;
             const isSelected = node.id === selectedUid;
             const isCenter = index === 0;
+            const isNeighbor = neighborIds.has(node.id);
 
             return (
               <div
@@ -164,7 +168,9 @@ const GraphPage = () => {
                       ? "h-[6.4rem] w-[6.4rem] border-2 border-primary bg-surface-container-highest shadow-[0_0_0_0_rgba(255,226,171,0.4)]"
                       : isSelected
                         ? "h-[4.8rem] w-[4.8rem] border-2 border-primary bg-surface-container-highest"
-                        : "h-[4rem] w-[4rem] border border-secondary bg-surface-container-highest"
+                        : isNeighbor
+                          ? "h-[4rem] w-[4rem] border border-primary/50 bg-surface-container-highest"
+                          : "h-[4rem] w-[4rem] border border-secondary bg-surface-container-highest"
                   }`}>
                   {isCenter ? (
                     <PsychologyIcon

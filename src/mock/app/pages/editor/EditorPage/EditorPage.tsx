@@ -9,10 +9,12 @@ import {
   TreeIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
 import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AISidePanelProps {
   summary: string | null;
@@ -143,6 +145,9 @@ const AISidePanel = ({ summary, tags, actions, isProcessing }: AISidePanelProps)
 };
 
 const EditorPage = () => {
+  const queryClient = useQueryClient();
+  const createNoteMutation = useCreateNoteMutation();
+
   const { data: notesData, isLoading: isNotesLoading } = useNotesQuery({ limit: 1 });
 
   const noteNumber = notesData?.items[0]?.note_number ?? 0;
@@ -157,6 +162,17 @@ const EditorPage = () => {
   const { data: noteActions, isLoading: isActionsLoading } = useNoteActionsQuery(noteNumber);
 
   const isLoading = isNotesLoading || isDetailLoading || isRelatedLoading || isActionsLoading;
+
+  const handleCreateNote = () => {
+    createNoteMutation.mutate(
+      { content: "New note created from editor" },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+        },
+      },
+    );
+  };
 
   const relatedNotes: RelatedNote[] = relatedNotesData?.items ?? [];
   const actions: ActionItemResponse[] = noteActions ?? [];
@@ -194,10 +210,17 @@ const EditorPage = () => {
             isProcessing={false}
           />
         }>
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-[2.4rem]">
           <p className="text-[1.6rem] text-on-surface-variant">
             No notes yet. Create your first note.
           </p>
+          <button
+            type="button"
+            onClick={handleCreateNote}
+            disabled={createNoteMutation.isPending}
+            className="rounded-[0.375rem] bg-primary px-[2.4rem] py-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
+            {createNoteMutation.isPending ? "Creating..." : "Create Note"}
+          </button>
         </div>
       </GlobalLayout>
     );

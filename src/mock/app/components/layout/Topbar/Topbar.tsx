@@ -6,6 +6,7 @@ import {
   FolderIcon,
   SearchIcon,
 } from "@/mock/app/components/Icons";
+import useUnreadCountQuery from "@/mock/lib/apis/queries/notifications/useUnreadCountQuery/useUnreadCountQuery";
 
 interface TopbarProps {
   title?: string;
@@ -18,6 +19,9 @@ const Topbar = ({
   breadcrumb,
   showSearch = true,
 }: TopbarProps) => {
+  const { data: unreadData } = useUnreadCountQuery();
+  const unreadCount = unreadData?.count ?? 0;
+
   return (
     <header className="sticky top-0 z-20 flex h-[6.4rem] w-full items-center justify-between bg-surface px-[2.4rem] shadow-[0px_0px_32px_0px_rgba(229,226,225,0.06)]">
       <div className="flex items-center gap-[1.6rem]">
@@ -84,9 +88,14 @@ const Topbar = ({
         </div>
         <button
           type="button"
-          className="rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"
+          className="relative rounded-[0.375rem] p-[0.8rem] text-secondary opacity-80 transition-colors hover:bg-surface-container active:scale-95"
           aria-label="Notifications">
           <BellIcon size="2.4rem" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-[0.2rem] -right-[0.2rem] flex h-[1.8rem] min-w-[1.8rem] items-center justify-center rounded-full bg-primary px-[0.4rem] text-[1rem] font-bold text-on-primary">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
         </button>
         <button
           type="button"
