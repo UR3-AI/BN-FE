@@ -8,6 +8,7 @@ import {
   InventoryIcon,
   LockIcon,
 } from "@/mock/app/components/Icons";
+import useForgotPasswordMutation from "@/mock/lib/apis/mutations/auth/useForgotPasswordMutation/useForgotPasswordMutation";
 
 import { useLoginMutation, useRegisterMutation } from "@lib/apis/mutations";
 import { useAuthStore } from "@lib/stores";
@@ -19,11 +20,15 @@ interface AuthFormValues {
 
 const LoginPage = () => {
   const [isSignUp, setIsSignUp] = useState(true);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotMsg, setForgotMsg] = useState("");
   const navigate = useNavigate();
   const setTokens = useAuthStore(state => state.setTokens);
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
+  const forgotPasswordMutation = useForgotPasswordMutation();
 
   const mutation = isSignUp ? registerMutation : loginMutation;
 
@@ -36,9 +41,29 @@ const LoginPage = () => {
 
   const handleToggleMode = () => {
     setIsSignUp(prev => !prev);
+    setShowForgotPassword(false);
+    setForgotEmail("");
+    setForgotMsg("");
     reset();
     loginMutation.reset();
     registerMutation.reset();
+    forgotPasswordMutation.reset();
+  };
+
+  const handleForgotPassword = () => {
+    if (!forgotEmail.trim()) return;
+    setForgotMsg("");
+    forgotPasswordMutation.mutate(
+      { email: forgotEmail.trim() },
+      {
+        onSuccess: () => {
+          setForgotMsg("Password reset link has been sent to your email.");
+        },
+        onError: () => {
+          setForgotMsg("Failed to send reset link. Please try again.");
+        },
+      },
+    );
   };
 
   const onSubmit = (data: AuthFormValues) => {
@@ -201,7 +226,51 @@ const LoginPage = () => {
                       : "Sign In"}
                 </button>
               </div>
+
+              {!isSignUp && (
+                <div className="pt-[1.2rem] text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(prev => !prev)}
+                    className="font-body text-[1.3rem] text-secondary transition-colors hover:text-primary">
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </form>
+
+            {/* Forgot Password Form */}
+            {showForgotPassword && !isSignUp && (
+              <div className="mt-[2.4rem] rounded-[0.375rem] border border-outline-variant/10 bg-surface-container-highest p-[2.4rem]">
+                <p className="mb-[1.6rem] font-headline text-[1.4rem] font-semibold text-on-surface">
+                  Reset Your Password
+                </p>
+                <p className="mb-[2rem] text-[1.3rem] text-on-surface-variant">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+                <div className="space-y-[1.6rem]">
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="w-full border-0 border-b-2 border-outline-variant bg-surface-container px-[1.6rem] py-[1.2rem] font-body text-[1.4rem] text-on-surface transition-all placeholder:text-on-surface-variant/30 focus:border-primary focus:outline-none focus:ring-0"
+                  />
+                  {forgotMsg && (
+                    <p className={`text-[1.2rem] ${forgotPasswordMutation.isError ? "text-error" : "text-secondary"}`}>
+                      {forgotMsg}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={!forgotEmail.trim() || forgotPasswordMutation.isPending}
+                    className="w-full rounded-[0.375rem] bg-primary py-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                    {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Social Options */}
             <div className="mt-[4rem]">
