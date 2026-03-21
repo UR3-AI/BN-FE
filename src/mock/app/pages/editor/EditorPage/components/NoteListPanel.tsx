@@ -1,6 +1,6 @@
 import type { NoteListItem } from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery.type";
 
-import { PlusCircleIcon, PushPinIcon } from "@/mock/app/components/Icons";
+import { DeleteIcon, PlusCircleIcon, PushPinIcon } from "@/mock/app/components/Icons";
 
 interface NoteListPanelProps {
   notes: NoteListItem[];
@@ -8,6 +8,7 @@ interface NoteListPanelProps {
   onSelectNote: (noteNumber: number) => void;
   onCreateNote: () => void;
   onPinToggle: (noteNumber: number, pinned: boolean) => void;
+  onDelete: (noteNumber: number) => void;
   isCreating: boolean;
 }
 
@@ -32,6 +33,7 @@ const NoteListPanel = ({
   onSelectNote,
   onCreateNote,
   onPinToggle,
+  onDelete,
   isCreating,
 }: NoteListPanelProps) => {
   const pinnedNotes = notes.filter(n => n.is_pinned);
@@ -78,6 +80,7 @@ const NoteListPanel = ({
                 isSelected={note.note_number === selectedNoteNumber}
                 onSelect={onSelectNote}
                 onPinToggle={onPinToggle}
+                onDelete={onDelete}
               />
             ))}
           </div>
@@ -98,6 +101,7 @@ const NoteListPanel = ({
                 isSelected={note.note_number === selectedNoteNumber}
                 onSelect={onSelectNote}
                 onPinToggle={onPinToggle}
+                onDelete={onDelete}
               />
             ))}
           </div>
@@ -118,9 +122,10 @@ interface NoteItemProps {
   isSelected: boolean;
   onSelect: (noteNumber: number) => void;
   onPinToggle: (noteNumber: number, pinned: boolean) => void;
+  onDelete: (noteNumber: number) => void;
 }
 
-const NoteItem = ({ note, isSelected, onSelect, onPinToggle }: NoteItemProps) => {
+const NoteItem = ({ note, isSelected, onSelect, onPinToggle, onDelete }: NoteItemProps) => {
   return (
     <div
       className={`group relative w-full cursor-pointer px-[1.6rem] py-[1.2rem] text-left transition-colors hover:bg-surface-container ${
@@ -132,7 +137,7 @@ const NoteItem = ({ note, isSelected, onSelect, onPinToggle }: NoteItemProps) =>
         type="button"
         onClick={() => onSelect(note.note_number)}
         className="w-full text-left">
-        <p className="truncate pr-[2.4rem] text-[1.3rem] font-semibold text-on-surface">
+        <p className="truncate pr-[4.8rem] text-[1.3rem] font-semibold text-on-surface">
           {note.title ?? "Untitled"}
         </p>
         <div className="mt-[0.4rem] flex items-center gap-[0.8rem]">
@@ -146,23 +151,38 @@ const NoteItem = ({ note, isSelected, onSelect, onPinToggle }: NoteItemProps) =>
           )}
         </div>
       </button>
-      <button
-        type="button"
-        onClick={e => {
-          e.stopPropagation();
-          onPinToggle(note.note_number, !note.is_pinned);
-        }}
-        className={`absolute top-[1.2rem] right-[1.2rem] rounded-[0.25rem] p-[0.4rem] transition-all ${
-          note.is_pinned
-            ? "text-primary opacity-100"
-            : "text-on-surface-variant opacity-0 group-hover:opacity-100"
-        } hover:bg-surface-container-high`}
-        title={note.is_pinned ? "Unpin" : "Pin"}>
-        <PushPinIcon
-          size="1.4rem"
-          fill="currentColor"
-        />
-      </button>
+      <div className="absolute top-[1.2rem] right-[1.2rem] flex gap-[0.2rem]">
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            onPinToggle(note.note_number, !note.is_pinned);
+          }}
+          className={`rounded-[0.25rem] p-[0.4rem] transition-all ${
+            note.is_pinned
+              ? "text-primary opacity-100"
+              : "text-on-surface-variant opacity-0 group-hover:opacity-100"
+          } hover:bg-surface-container-high`}
+          title={note.is_pinned ? "Unpin" : "Pin"}>
+          <PushPinIcon
+            size="1.4rem"
+            fill="currentColor"
+          />
+        </button>
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            onDelete(note.note_number);
+          }}
+          className="rounded-[0.25rem] p-[0.4rem] text-on-surface-variant opacity-0 transition-all hover:bg-error/10 hover:text-error group-hover:opacity-100"
+          title="Delete">
+          <DeleteIcon
+            size="1.4rem"
+            fill="currentColor"
+          />
+        </button>
+      </div>
     </div>
   );
 };

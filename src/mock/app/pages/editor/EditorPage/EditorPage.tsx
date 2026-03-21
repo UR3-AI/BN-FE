@@ -4,6 +4,7 @@ import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQ
 import { LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
+import useDeleteNoteMutation from "@/mock/lib/apis/mutations/notes/useDeleteNoteMutation/useDeleteNoteMutation";
 import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
@@ -19,6 +20,7 @@ const EditorPage = () => {
   const queryClient = useQueryClient();
   const createNoteMutation = useCreateNoteMutation();
   const pinNoteMutation = usePinNoteMutation();
+  const deleteNoteMutation = useDeleteNoteMutation();
 
   const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
     useEditorNote();
@@ -66,6 +68,17 @@ const EditorPage = () => {
     );
   };
 
+  const handleDeleteNote = (noteNumber: number) => {
+    deleteNoteMutation.mutate(noteNumber, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["notes"] });
+        if (selectedNoteNumber === noteNumber) {
+          setSelectedNoteNumber(0);
+        }
+      },
+    });
+  };
+
   const relatedNotes: RelatedNote[] = relatedNotesData?.items ?? [];
   const actions: ActionItemResponse[] = noteActions ?? [];
 
@@ -88,6 +101,7 @@ const EditorPage = () => {
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
             onPinToggle={handlePinToggle}
+            onDelete={handleDeleteNote}
             isCreating={createNoteMutation.isPending}
           />
           <div className="flex flex-1 items-center justify-center">
@@ -117,6 +131,7 @@ const EditorPage = () => {
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
             onPinToggle={handlePinToggle}
+            onDelete={handleDeleteNote}
             isCreating={createNoteMutation.isPending}
           />
           <div className="flex flex-1 flex-col items-center justify-center gap-[2.4rem]">
@@ -159,6 +174,7 @@ const EditorPage = () => {
           onSelectNote={handleSelectNote}
           onCreateNote={handleCreateNote}
           onPinToggle={handlePinToggle}
+          onDelete={handleDeleteNote}
           isCreating={createNoteMutation.isPending}
         />
 
