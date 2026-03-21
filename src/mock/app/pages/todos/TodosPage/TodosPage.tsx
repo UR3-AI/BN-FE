@@ -283,7 +283,6 @@ const TodosPage = () => {
 
   return (
     <GlobalLayout
-      activeMenu="todos"
       sidePanel={
         <DetailPanel
           action={selectedEntry?.action ?? null}

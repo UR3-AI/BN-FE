@@ -15,7 +15,6 @@ const SettingsPage = () => {
   if (isLoading) {
     return (
       <GlobalLayout
-        activeMenu="settings"
         topbarTitle="Settings"
         showSearch={false}>
         <div className="flex-1 flex items-center justify-center text-[1.4rem] text-on-surface-variant">
@@ -28,7 +27,6 @@ const SettingsPage = () => {
   if (error || !data) {
     return (
       <GlobalLayout
-        activeMenu="settings"
         topbarTitle="Settings"
         showSearch={false}>
         <div className="flex-1 flex items-center justify-center text-[1.4rem] text-error">
@@ -40,7 +38,6 @@ const SettingsPage = () => {
 
   return (
     <GlobalLayout
-      activeMenu="settings"
       topbarTitle="Settings"
       showSearch={false}>
       <div className="flex-1 overflow-y-auto p-[2.4rem] md:p-[4rem]">

@@ -6,7 +6,6 @@ import { Topbar } from "../Topbar";
 
 interface GlobalLayoutProps {
   children: ReactNode;
-  activeMenu?: string;
   topbarTitle?: string;
   breadcrumb?: { label: string; active?: boolean }[];
   showSearch?: boolean;
@@ -15,7 +14,6 @@ interface GlobalLayoutProps {
 
 const GlobalLayout = ({
   children,
-  activeMenu,
   topbarTitle,
   breadcrumb,
   showSearch,
@@ -23,7 +21,7 @@ const GlobalLayout = ({
 }: GlobalLayoutProps) => {
   return (
     <div className="flex min-h-screen bg-surface">
-      <Sidebar activeMenu={activeMenu} />
+      <Sidebar />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
@@ -43,7 +41,7 @@ const GlobalLayout = ({
         </main>
       </div>
 
-      <BottomNav activeMenu={activeMenu} />
+      <BottomNav />
     </div>
   );
 };

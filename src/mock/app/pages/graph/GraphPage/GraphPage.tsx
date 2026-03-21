@@ -69,7 +69,6 @@ const GraphPage = () => {
 
   return (
     <GlobalLayout
-      activeMenu="graph"
       topbarTitle={`Knowledge Graph${statsData ? ` · ${statsData.total_entities} entities` : ""}`}
       showSearch={false}>
       {/* Canvas Area */}

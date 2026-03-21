@@ -48,7 +48,6 @@ const DashboardPage = () => {
   if (isLoading) {
     return (
       <GlobalLayout
-        activeMenu="dashboard"
         showSearch={true}>
         <div className="flex-1 flex items-center justify-center text-[1.4rem] text-on-surface-variant">
           Loading...
@@ -60,7 +59,6 @@ const DashboardPage = () => {
   if (error || !data) {
     return (
       <GlobalLayout
-        activeMenu="dashboard"
         showSearch={true}>
         <div className="flex-1 flex items-center justify-center text-[1.4rem] text-error">
           데이터를 불러오지 못했습니다.
@@ -71,7 +69,6 @@ const DashboardPage = () => {
 
   return (
     <GlobalLayout
-      activeMenu="dashboard"
       showSearch={true}>
       <div className="flex-1 px-[3.2rem] py-[4rem] flex flex-col gap-[4rem]">
         {/* Greeting Section */}

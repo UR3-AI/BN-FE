@@ -14,8 +14,8 @@ export const routes: RouteObject[] = [
   {
     element: <ProtectedRoute />,
     children: [
-      { path: "/", element: <DashboardPage /> },
-      { path: "/editor", element: <EditorPage /> },
+      { path: "/", element: <EditorPage /> },
+      { path: "/dashboard", element: <DashboardPage /> },
       { path: "/search", element: <SearchPage /> },
       { path: "/graph", element: <GraphPage /> },
       { path: "/todos", element: <TodosPage /> },

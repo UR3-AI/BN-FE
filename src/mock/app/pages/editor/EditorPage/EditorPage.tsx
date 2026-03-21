@@ -180,7 +180,6 @@ const EditorPage = () => {
   if (isLoading) {
     return (
       <GlobalLayout
-        activeMenu="editor"
         breadcrumb={[{ label: "Projects" }, { label: "Loading...", active: true }]}
         sidePanel={
           <AISidePanel
@@ -200,7 +199,6 @@ const EditorPage = () => {
   if (!hasNote || !noteDetail) {
     return (
       <GlobalLayout
-        activeMenu="editor"
         breadcrumb={[{ label: "Projects" }, { label: "No notes", active: true }]}
         sidePanel={
           <AISidePanel
@@ -230,7 +228,6 @@ const EditorPage = () => {
 
   return (
     <GlobalLayout
-      activeMenu="editor"
       breadcrumb={[
         { label: "Projects" },
         { label: noteDetail.title ?? "Untitled", active: true },

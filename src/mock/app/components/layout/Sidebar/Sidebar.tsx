@@ -1,3 +1,5 @@
+import { NavLink } from "react-router-dom";
+
 import {
   ArchiveIcon,
   ChecklistIcon,
@@ -9,24 +11,20 @@ import {
   SettingsIcon,
 } from "@/mock/app/components/Icons";
 
-interface SidebarProps {
-  activeMenu?: string;
-}
-
 const mainNav = [
-  { label: "Dashboard", id: "dashboard", icon: DashboardIcon },
-  { label: "Editor", id: "editor", icon: EditorIcon },
-  { label: "Knowledge Graph", id: "graph", icon: GraphIcon },
-  { label: "To-Dos", id: "todos", icon: ChecklistIcon },
-  { label: "Settings", id: "settings", icon: SettingsIcon },
+  { label: "Dashboard", path: "/dashboard", icon: DashboardIcon },
+  { label: "Editor", path: "/", icon: EditorIcon },
+  { label: "Knowledge Graph", path: "/graph", icon: GraphIcon },
+  { label: "To-Dos", path: "/todos", icon: ChecklistIcon },
+  { label: "Settings", path: "/settings", icon: SettingsIcon },
 ];
 
 const bottomNav = [
-  { label: "Archive", id: "archive", icon: ArchiveIcon },
-  { label: "Help", id: "help", icon: HelpIcon },
+  { label: "Archive", path: "/archive", icon: ArchiveIcon },
+  { label: "Help", path: "/help", icon: HelpIcon },
 ];
 
-const Sidebar = ({ activeMenu = "dashboard" }: SidebarProps) => {
+const Sidebar = () => {
   return (
     <aside className="sticky top-0 left-0 hidden h-screen w-[25.6rem] flex-col bg-surface-container-low px-[1.6rem] py-[3.2rem] font-body text-[1.4rem] tracking-wide md:flex">
       <div className="mb-[4rem] px-[1.6rem]">
@@ -41,18 +39,21 @@ const Sidebar = ({ activeMenu = "dashboard" }: SidebarProps) => {
       </div>
 
       <nav className="flex-1 space-y-[0.4rem]">
-        {mainNav.map(({ label, id, icon: Icon }) => (
-          <a
-            key={id}
-            href="#"
-            className={`flex items-center gap-[1.2rem] rounded-[0.375rem] px-[1.6rem] py-[1.2rem] transition-all duration-200 ${
-              activeMenu === id
-                ? "bg-surface-container-highest text-primary"
-                : "text-secondary hover:bg-surface-container hover:text-primary"
-            }`}>
+        {mainNav.map(({ label, path, icon: Icon }) => (
+          <NavLink
+            key={path}
+            to={path}
+            end={path === "/"}
+            className={({ isActive }) =>
+              `flex items-center gap-[1.2rem] rounded-[0.375rem] px-[1.6rem] py-[1.2rem] transition-all duration-200 ${
+                isActive
+                  ? "bg-surface-container-highest text-primary"
+                  : "text-secondary hover:bg-surface-container hover:text-primary"
+              }`
+            }>
             <Icon size="2.4rem" />
             <span>{label}</span>
-          </a>
+          </NavLink>
         ))}
       </nav>
 
@@ -64,18 +65,20 @@ const Sidebar = ({ activeMenu = "dashboard" }: SidebarProps) => {
           New Node
         </button>
 
-        {bottomNav.map(({ label, id, icon: Icon }) => (
-          <a
-            key={id}
-            href="#"
-            className={`flex items-center gap-[1.2rem] px-[1.6rem] py-[1.2rem] transition-all duration-200 ${
-              activeMenu === id
-                ? "text-primary"
-                : "text-secondary hover:bg-surface-container hover:text-primary"
-            }`}>
+        {bottomNav.map(({ label, path, icon: Icon }) => (
+          <NavLink
+            key={path}
+            to={path}
+            className={({ isActive }) =>
+              `flex items-center gap-[1.2rem] px-[1.6rem] py-[1.2rem] transition-all duration-200 ${
+                isActive
+                  ? "text-primary"
+                  : "text-secondary hover:bg-surface-container hover:text-primary"
+              }`
+            }>
             <Icon size="2rem" />
             <span className="text-[1.2rem]">{label}</span>
-          </a>
+          </NavLink>
         ))}
       </div>
     </aside>
