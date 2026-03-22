@@ -51,7 +51,8 @@ const computeNodePositions = (
     if (index === 0) {
       return { id: node.id, x: centerX, y: centerY };
     }
-    const angle = ((index - 1) / (limited.length - 1)) * 2 * Math.PI;
+    const count = limited.length - 1;
+    const angle = (2 * Math.PI * (index - 1)) / count;
     const x = centerX + radius * Math.cos(angle);
     const y = centerY + radius * Math.sin(angle);
     return { id: node.id, x, y };
@@ -90,8 +91,8 @@ const GraphPage = () => {
     mergeEntitiesMutation.mutate(
       { source_uid: selectedUid, target_uid: mergeTarget },
       {
-        onSuccess: () => {
-          setSelectedUid(mergeTarget);
+        onSuccess: data => {
+          setSelectedUid(data.merged_uid);
           setMergeTarget("");
           queryClient.invalidateQueries({ queryKey: ["graph"] });
         },
