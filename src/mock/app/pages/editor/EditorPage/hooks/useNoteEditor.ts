@@ -15,17 +15,19 @@ const useNoteEditor = ({
   noteDetail: NoteDetailResponse | undefined;
   noteNumber: number;
 }) => {
+  const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingContentRef = useRef<string | null>(null);
+  const pendingRef = useRef<{ title: string; content: string } | null>(null);
   const noteNumberRef = useRef(noteNumber);
   const updateMutation = useUpdateNoteMutation();
 
   useEffect(() => {
+    setTitle(noteDetail?.title ?? "");
     setContent(noteDetail?.content ?? "");
     setSaveStatus("idle");
-    pendingContentRef.current = null;
+    pendingRef.current = null;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -36,12 +38,16 @@ const useNoteEditor = ({
     noteNumberRef.current = noteNumber;
   }, [noteNumber]);
 
-  const save = (value: string, targetNoteNumber: number) => {
-    if (targetNoteNumber <= 0) return;
+  const save = (value: { title: string; content: string }, targetNoteNumber: number) => {
+    if (targetNoteNumber <= 0 || !value.content) return;
     setSaveStatus("saving");
-    pendingContentRef.current = null;
+    pendingRef.current = null;
     updateMutation.mutate(
-      { noteNumber: targetNoteNumber, content: value },
+      {
+        noteNumber: targetNoteNumber,
+        title: value.title || undefined,
+        content: value.content,
+      },
       {
         onSuccess: () => setSaveStatus("saved"),
         onError: () => setSaveStatus("error"),
@@ -49,9 +55,8 @@ const useNoteEditor = ({
     );
   };
 
-  const onContentChange = (value: string) => {
-    setContent(value);
-    pendingContentRef.current = value;
+  const scheduleSave = (newTitle: string, newContent: string) => {
+    pendingRef.current = { title: newTitle, content: newContent };
 
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -60,8 +65,20 @@ const useNoteEditor = ({
     const currentNoteNumber = noteNumberRef.current;
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      save(value, currentNoteNumber);
+      if (pendingRef.current) {
+        save(pendingRef.current, currentNoteNumber);
+      }
     }, DEBOUNCE_MS);
+  };
+
+  const onTitleChange = (value: string) => {
+    setTitle(value);
+    scheduleSave(value, content);
+  };
+
+  const onContentChange = (value: string) => {
+    setContent(value);
+    scheduleSave(title, value);
   };
 
   const flush = () => {
@@ -69,8 +86,8 @@ const useNoteEditor = ({
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (pendingContentRef.current !== null) {
-      save(pendingContentRef.current, noteNumberRef.current);
+    if (pendingRef.current !== null) {
+      save(pendingRef.current, noteNumberRef.current);
     }
   };
 
@@ -79,14 +96,14 @@ const useNoteEditor = ({
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
-      if (pendingContentRef.current !== null && noteNumberRef.current > 0) {
-        save(pendingContentRef.current, noteNumberRef.current);
+      if (pendingRef.current !== null && noteNumberRef.current > 0) {
+        save(pendingRef.current, noteNumberRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { content, saveStatus, onContentChange, flush };
+  return { title, content, saveStatus, onTitleChange, onContentChange, flush };
 };
 
 export default useNoteEditor;

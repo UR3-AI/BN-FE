@@ -4,8 +4,8 @@ import { api } from "@lib/apis/axios";
 
 import type { NoteUpdateRequest, NoteUpdateResponse } from "./useUpdateNoteMutation.type";
 
-const updateNote = async ({ noteNumber, content }: NoteUpdateRequest) => {
-  const response = await api.patch<NoteUpdateResponse>(`/api/v1/notes/${noteNumber}`, { content });
+const updateNote = async ({ noteNumber, title, content }: NoteUpdateRequest) => {
+  const response = await api.patch<NoteUpdateResponse>(`/api/v1/notes/${noteNumber}`, { title, content });
   return response.data;
 };
 

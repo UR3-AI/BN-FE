@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -15,6 +17,7 @@ import { useExecuteActionMutation, useUpdateActionMutation } from "@/mock/lib/ap
 import type { ActionItemResponse } from "@/mock/lib/apis/mutations/actions/useUpdateActionMutation/useUpdateActionMutation.type";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
+import useResearchStream from "@/mock/lib/hooks/useResearchStream/useResearchStream";
 
 type FilterType = "All" | "Pending" | "Completed" | "Overdue";
 
@@ -57,10 +60,16 @@ const DetailPanel = ({
   action,
   noteNumber,
   onClose,
+  onNavigateNote,
+  researchStatus,
+  researchContent,
 }: {
   action: ActionItemResponse | null;
   noteNumber: number | null;
   onClose: () => void;
+  onNavigateNote: (noteNumber: number) => void;
+  researchStatus: "idle" | "streaming" | "completed" | "failed";
+  researchContent: string;
 }) => {
   return (
     <div className="p-[2.4rem]">
@@ -132,9 +141,10 @@ const DetailPanel = ({
                 Associated Context
               </h4>
               <div className="space-y-[0.8rem]">
-                <a
-                  href="#"
-                  className="group block rounded-[0.25rem] bg-surface-container-low p-[1.2rem] transition-colors hover:bg-surface-container-high">
+                <button
+                  type="button"
+                  onClick={() => onNavigateNote(noteNumber)}
+                  className="group block w-full rounded-[0.25rem] bg-surface-container-low p-[1.2rem] text-left transition-colors hover:bg-surface-container-high">
                   <div className="flex items-center gap-[1.2rem]">
                     <DescriptionIcon
                       size="2rem"
@@ -149,11 +159,12 @@ const DetailPanel = ({
                       </p>
                     </div>
                   </div>
-                </a>
+                </button>
                 {action.research_note_number !== null && (
-                  <a
-                    href="#"
-                    className="group block rounded-[0.25rem] bg-surface-container-low p-[1.2rem] transition-colors hover:bg-surface-container-high">
+                  <button
+                    type="button"
+                    onClick={() => onNavigateNote(action.research_note_number!)}
+                    className="group block w-full rounded-[0.25rem] bg-surface-container-low p-[1.2rem] text-left transition-colors hover:bg-surface-container-high">
                     <div className="flex items-center gap-[1.2rem]">
                       <TreeIcon
                         size="2rem"
@@ -168,56 +179,45 @@ const DetailPanel = ({
                         </p>
                       </div>
                     </div>
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* AI Suggested Actions */}
-          <div className="space-y-[1.6rem] rounded-[0.5rem] border border-primary/10 bg-gradient-to-br from-primary/5 to-secondary/5 p-[2.4rem]">
-            <div className="flex items-center gap-[0.8rem]">
-              <SparklesIcon
-                size="1.8rem"
-                fill="#ffe2ab"
-              />
-              <h4 className="text-[1rem] font-bold uppercase tracking-[0.15em] text-primary/80">
-                AI Suggested Actions
-              </h4>
+          {/* Research Stream */}
+          {(researchStatus === "streaming" || researchContent) && (
+            <div className="space-y-[1.2rem]">
+              <div className="flex items-center gap-[0.8rem]">
+                <SparklesIcon
+                  size="1.8rem"
+                  fill="#9fd0cd"
+                />
+                <h4 className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface/40">
+                  Research Output
+                </h4>
+                {researchStatus === "streaming" && (
+                  <div className="h-[1.2rem] w-[1.2rem] animate-spin rounded-full border-[0.2rem] border-outline-variant border-t-primary" />
+                )}
+                {researchStatus === "completed" && (
+                  <span className="rounded-[0.125rem] bg-secondary-container/30 px-[0.6rem] py-[0.1rem] text-[0.9rem] font-semibold uppercase text-secondary">
+                    Done
+                  </span>
+                )}
+                {researchStatus === "failed" && (
+                  <span className="rounded-[0.125rem] bg-error/10 px-[0.6rem] py-[0.1rem] text-[0.9rem] font-semibold uppercase text-error">
+                    Failed
+                  </span>
+                )}
+              </div>
+              <div className="max-h-[24rem] overflow-y-auto rounded-[0.25rem] bg-surface-container-low p-[1.6rem]">
+                <p className="whitespace-pre-wrap text-[1.3rem] leading-relaxed text-on-surface/80">
+                  {researchContent || "Gathering information..."}
+                </p>
+              </div>
             </div>
-            <ul className="space-y-[0.4rem]">
-              <li>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-[0.8rem] rounded-[0.25rem] p-[0.8rem] text-left text-[1.2rem] text-on-surface/80 transition-colors hover:bg-white/5">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="1.6rem"
-                    height="1.6rem"
-                    fill="currentColor">
-                    <path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z" />
-                  </svg>
-                  Schedule review session
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-[0.8rem] rounded-[0.25rem] p-[0.8rem] text-left text-[1.2rem] text-on-surface/80 transition-colors hover:bg-white/5">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="1.6rem"
-                    height="1.6rem"
-                    fill="currentColor">
-                    <path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z" />
-                  </svg>
-                  Generate draft summary
-                </button>
-              </li>
-            </ul>
-          </div>
+          )}
+
         </div>
       )}
     </div>
@@ -233,9 +233,11 @@ const TodosPage = () => {
   const [filter, setFilter] = useState<FilterType>("All");
   const [selectedActionId, setSelectedActionId] = useState<number | null>(null);
 
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { mutate: updateAction } = useUpdateActionMutation();
   const executeAction = useExecuteActionMutation();
+  const researchStream = useResearchStream();
   const [executingActionId, setExecutingActionId] = useState<number | null>(null);
 
   const { data: notesData, isLoading: isNotesLoading } = useNotesQuery({ limit: 50 });
@@ -274,6 +276,7 @@ const TodosPage = () => {
     executeAction.mutate(actionId, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["notes"] });
+        researchStream.subscribe(actionId);
       },
       onSettled: () => {
         setExecutingActionId(null);
@@ -302,6 +305,9 @@ const TodosPage = () => {
           action={selectedEntry?.action ?? null}
           noteNumber={selectedEntry?.noteNumber ?? null}
           onClose={() => setSelectedActionId(null)}
+          onNavigateNote={n => navigate("/", { state: { noteNumber: n } })}
+          researchStatus={researchStream.status}
+          researchContent={researchStream.content}
         />
       }>
       <div className="flex-1 overflow-y-auto bg-surface-container-lowest px-[3.2rem] py-[3.2rem] md:px-[4.8rem]">
@@ -399,16 +405,19 @@ const TodosPage = () => {
                         </span>
                       </div>
                       <div className="flex items-center gap-[1.6rem] text-[1.2rem] text-on-surface/50">
-                        <a
-                          href="#"
-                          onClick={e => e.stopPropagation()}
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate("/", { state: { noteNumber } });
+                          }}
                           className="flex items-center gap-[0.4rem] transition-colors hover:text-primary">
                           <LinkIcon
                             size="1.6rem"
                             fill="currentColor"
                           />
                           Note #{noteNumber}
-                        </a>
+                        </button>
                         {action.end_time && (
                           <span className="flex items-center gap-[0.4rem]">
                             <svg

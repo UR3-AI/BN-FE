@@ -1,5 +1,6 @@
 export interface NoteUpdateRequest {
   noteNumber: number;
+  title?: string;
   content: string;
 }
 

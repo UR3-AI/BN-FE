@@ -1,11 +1,13 @@
 import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
 import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { CloseIcon, DeleteIcon, LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
+import useAttachmentDownload from "@/mock/lib/apis/mutations/notes/useAttachmentDownload/useAttachmentDownload";
 import useDeleteAttachmentMutation from "@/mock/lib/apis/mutations/notes/useDeleteAttachmentMutation/useDeleteAttachmentMutation";
+import useNoteExport from "@/mock/lib/apis/mutations/notes/useNoteExport/useNoteExport";
 import useUploadAttachmentMutation from "@/mock/lib/apis/mutations/notes/useUploadAttachmentMutation/useUploadAttachmentMutation";
 import useAddTagsMutation from "@/mock/lib/apis/mutations/tags/useAddTagsMutation/useAddTagsMutation";
 import useRemoveTagsMutation from "@/mock/lib/apis/mutations/tags/useRemoveTagsMutation/useRemoveTagsMutation";
@@ -17,7 +19,7 @@ import useAttachmentsQuery from "@/mock/lib/apis/queries/notes/useAttachmentsQue
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
-import useAuthStore from "@lib/stores/useAuthStore/useAuthStore";
+import useNoteStream from "@/mock/lib/hooks/useNoteStream/useNoteStream";
 import { useQueryClient } from "@tanstack/react-query";
 
 import AISidePanel from "./components/AISidePanel";
@@ -35,15 +37,11 @@ const EditorPage = () => {
   const removeTagsMutation = useRemoveTagsMutation();
   const uploadAttachmentMutation = useUploadAttachmentMutation();
   const deleteAttachmentMutation = useDeleteAttachmentMutation();
+  const noteExport = useNoteExport();
+  const attachmentDownload = useAttachmentDownload();
+  const { subscribe: subscribeNoteStream } = useNoteStream();
   const [tagInput, setTagInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sseAbortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    return () => {
-      sseAbortRef.current?.abort();
-    };
-  }, []);
 
   const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
     useEditorNote();
@@ -53,7 +51,7 @@ const EditorPage = () => {
   const { data: noteDetail, isLoading: isDetailLoading } =
     useNoteDetailQuery(selectedNoteNumber);
 
-  const { content, saveStatus, onContentChange, flush } = useNoteEditor({
+  const { title, content, saveStatus, onTitleChange, onContentChange, flush } = useNoteEditor({
     noteDetail,
     noteNumber: selectedNoteNumber,
   });
@@ -74,48 +72,9 @@ const EditorPage = () => {
   const isLoading =
     isNotesLoading || (hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading));
 
-  const subscribeNoteStream = async (noteNumber: number) => {
-    sseAbortRef.current?.abort();
-    const controller = new AbortController();
-    sseAbortRef.current = controller;
-
-    try {
-      const token = useAuthStore.getState().accessToken;
-      const response = await fetch(`/api/v1/notes/${noteNumber}/stream`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        signal: controller.signal,
-      });
-      if (!response.ok || !response.body) return;
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        if (lines.some(l => l.startsWith("event: completed") || l.startsWith("event: failed"))) {
-          queryClient.invalidateQueries({ queryKey: ["notes"] });
-          break;
-        }
-      }
-    } catch {
-      // aborted or network error — ignore
-    } finally {
-      if (sseAbortRef.current === controller) {
-        sseAbortRef.current = null;
-      }
-    }
-  };
-
   const handleCreateNote = () => {
     createNoteMutation.mutate(
-      { content: "New note created from editor" },
+      { content: " " },
       {
         onSuccess: data => {
           queryClient.invalidateQueries({ queryKey: ["notes"] });
@@ -255,23 +214,8 @@ const EditorPage = () => {
     );
   };
 
-  const handleExport = async (format: "markdown" | "pdf") => {
-    const response = await fetch(
-      `/api/v1/notes/${selectedNoteNumber}/export?format=${format}`,
-      {
-        headers: {
-          Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
-        },
-      },
-    );
-    if (!response.ok) return;
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `note-${selectedNoteNumber}.${format === "markdown" ? "md" : "pdf"}`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = (format: "markdown" | "pdf") => {
+    noteExport.mutate({ noteNumber: selectedNoteNumber, format });
   };
 
   return (
@@ -363,19 +307,25 @@ const EditorPage = () => {
               <button
                 type="button"
                 onClick={() => handleExport("markdown")}
-                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container">
-                Export MD
+                disabled={noteExport.isPending}
+                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container disabled:opacity-50">
+                {noteExport.isPending ? "Exporting..." : "Export MD"}
               </button>
               <button
                 type="button"
                 onClick={() => handleExport("pdf")}
-                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container">
+                disabled={noteExport.isPending}
+                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container disabled:opacity-50">
                 Export PDF
               </button>
             </div>
-            <h1 className="mb-[3.2rem] font-headline text-[5rem] font-extrabold leading-tight tracking-tighter text-on-surface">
-              {noteDetail.title ?? "Untitled"}
-            </h1>
+            <input
+              type="text"
+              value={title}
+              onChange={e => onTitleChange(e.target.value)}
+              placeholder="Untitled"
+              className="mb-[3.2rem] w-full bg-transparent font-headline text-[5rem] font-extrabold leading-tight tracking-tighter text-on-surface outline-none placeholder:text-on-surface-variant/30"
+            />
           </div>
 
           {/* Article Content */}
@@ -427,26 +377,15 @@ const EditorPage = () => {
                     className="flex items-center justify-between rounded-[0.25rem] bg-surface-container-low px-[1.6rem] py-[1rem]">
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          const token = useAuthStore.getState().accessToken;
-                          const res = await fetch(
-                            `/api/v1/notes/${selectedNoteNumber}/attachments/${attachment.id}/download`,
-                            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-                          );
-                          if (!res.ok) return;
-                          const blob = await res.blob();
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = attachment.filename;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        } catch {
-                          // network error
-                        }
-                      }}
-                      className="text-[1.3rem] font-medium text-primary hover:underline">
+                      onClick={() =>
+                        attachmentDownload.mutate({
+                          noteNumber: selectedNoteNumber,
+                          attachmentId: attachment.id,
+                          filename: attachment.filename,
+                        })
+                      }
+                      disabled={attachmentDownload.isPending}
+                      className="text-[1.3rem] font-medium text-primary hover:underline disabled:opacity-50">
                       {attachment.filename}
                     </button>
                     <div className="flex items-center gap-[1.2rem]">

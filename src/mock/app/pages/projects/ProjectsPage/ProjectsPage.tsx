@@ -1,10 +1,20 @@
 import { useState } from "react";
 
-import { DeleteIcon, FolderIcon, PlusCircleIcon } from "@/mock/app/components/Icons";
+import {
+  CloseIcon,
+  DeleteIcon,
+  DescriptionIcon,
+  FolderIcon,
+  LinkIcon,
+  PlusCircleIcon,
+} from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useCreateProjectMutation from "@/mock/lib/apis/mutations/projects/useCreateProjectMutation/useCreateProjectMutation";
 import useDeleteProjectMutation from "@/mock/lib/apis/mutations/projects/useDeleteProjectMutation/useDeleteProjectMutation";
+import useProjectNotesMutation from "@/mock/lib/apis/mutations/projects/useProjectNotesMutation/useProjectNotesMutation";
+import useProjectDetailQuery from "@/mock/lib/apis/queries/projects/useProjectDetailQuery/useProjectDetailQuery";
 import useProjectsQuery from "@/mock/lib/apis/queries/projects/useProjectsQuery/useProjectsQuery";
+import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
 import { useQueryClient } from "@tanstack/react-query";
 
 const PROJECT_COLORS = [
@@ -16,6 +26,174 @@ const PROJECT_COLORS = [
   "#b5f4c4",
 ];
 
+const ProjectDetailPanel = ({
+  projectId,
+  onClose,
+}: {
+  projectId: string | null;
+  onClose: () => void;
+}) => {
+  const queryClient = useQueryClient();
+  const { data: project } = useProjectDetailQuery(projectId ?? "");
+  const { data: notesData } = useNotesQuery({ limit: 50 });
+  const projectNotesMutation = useProjectNotesMutation();
+  const [noteInput, setNoteInput] = useState("");
+
+  const notes = notesData?.items ?? [];
+
+  const handleAddNote = () => {
+    const noteNumber = parseInt(noteInput.trim(), 10);
+    if (!projectId || isNaN(noteNumber) || noteNumber <= 0) return;
+    projectNotesMutation.mutate(
+      { projectId, noteNumber, action: "add" },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["projects"] });
+          setNoteInput("");
+        },
+      },
+    );
+  };
+
+  const handleRemoveNote = (noteNumber: number) => {
+    if (!projectId) return;
+    projectNotesMutation.mutate(
+      { projectId, noteNumber, action: "remove" },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["projects"] });
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="p-[2.4rem]">
+      <div className="mb-[3.2rem] flex items-center justify-between">
+        <span className="text-[1rem] font-bold uppercase tracking-[0.2em] text-primary">
+          Project Detail
+        </span>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="text-on-surface/40 transition-colors hover:text-on-surface">
+          <CloseIcon
+            size="2rem"
+            stroke="currentColor"
+          />
+        </button>
+      </div>
+
+      {!project && (
+        <div className="flex flex-col items-center justify-center py-[8rem] text-center">
+          <FolderIcon
+            size="4rem"
+            className="mb-[1.6rem] opacity-40"
+          />
+          <p className="text-[1.4rem] text-on-surface-variant">
+            Select a project to manage notes
+          </p>
+        </div>
+      )}
+
+      {project && (
+        <div className="space-y-[3.2rem]">
+          {/* Project Info */}
+          <div>
+            <div
+              className="mb-[1.6rem] h-[0.4rem] w-[4rem] rounded-full"
+              style={{ backgroundColor: project.color ?? "#9fd0cd" }}
+            />
+            <h2 className="mb-[0.8rem] font-headline text-[2.2rem] font-bold text-on-surface">
+              {project.name}
+            </h2>
+            {project.description && (
+              <p className="text-[1.4rem] leading-relaxed text-on-surface-variant">
+                {project.description}
+              </p>
+            )}
+            <span className="mt-[0.8rem] block text-[1.2rem] text-secondary">
+              {project.note_count} note{project.note_count !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {/* Add Note */}
+          <div className="space-y-[1.2rem]">
+            <h4 className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface/40">
+              Add Note to Project
+            </h4>
+            <div className="flex gap-[0.8rem]">
+              <select
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                className="flex-1 rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-highest px-[1.2rem] py-[0.8rem] text-[1.2rem] text-on-surface focus:border-primary/50 focus:outline-none">
+                <option value="">Select a note...</option>
+                {notes.map(note => (
+                  <option
+                    key={note.note_number}
+                    value={note.note_number}>
+                    #{note.note_number} {note.title ?? "Untitled"}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleAddNote}
+                disabled={!noteInput || projectNotesMutation.isPending}
+                className="flex items-center gap-[0.4rem] rounded-[0.25rem] bg-primary px-[1.2rem] py-[0.8rem] text-[1.1rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
+                <PlusCircleIcon size="1.4rem" />
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Notes */}
+          {project.recent_notes.length > 0 && (
+              <div className="space-y-[1.2rem]">
+                <h4 className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface/40">
+                  Notes in Project
+                </h4>
+                <div className="space-y-[0.8rem]">
+                  {project.recent_notes.map(note => (
+                    <div
+                      key={note.note_number}
+                      className="group flex items-center justify-between rounded-[0.25rem] bg-surface-container-low p-[1.2rem] transition-colors hover:bg-surface-container">
+                      <div className="flex items-center gap-[1.2rem]">
+                        <DescriptionIcon
+                          size="1.8rem"
+                          fill="#ffe2ab"
+                        />
+                        <div>
+                          <p className="text-[1.3rem] font-medium text-on-surface">
+                            {note.title ?? "Untitled"}
+                          </p>
+                          <p className="text-[1rem] text-outline">
+                            Note #{note.note_number}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveNote(note.note_number)}
+                        disabled={projectNotesMutation.isPending}
+                        className="text-secondary opacity-0 transition-all hover:text-error group-hover:opacity-100 disabled:opacity-50">
+                        <LinkIcon
+                          size="1.4rem"
+                          fill="currentColor"
+                        />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProjectsPage = () => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useProjectsQuery();
@@ -26,6 +204,7 @@ const ProjectsPage = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(PROJECT_COLORS[0]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const projects = data?.items ?? [];
 
@@ -50,6 +229,7 @@ const ProjectsPage = () => {
     deleteMutation.mutate(projectId, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["projects"] });
+        if (selectedProjectId === projectId) setSelectedProjectId(null);
       },
     });
   };
@@ -69,7 +249,13 @@ const ProjectsPage = () => {
   return (
     <GlobalLayout
       topbarTitle="Projects"
-      showSearch={false}>
+      showSearch={false}
+      sidePanel={
+        <ProjectDetailPanel
+          projectId={selectedProjectId}
+          onClose={() => setSelectedProjectId(null)}
+        />
+      }>
       <div className="flex-1 overflow-y-auto p-[2.4rem] md:p-[4rem]">
         <div className="mx-auto max-w-[96rem]">
           {/* Header */}
@@ -181,7 +367,12 @@ const ProjectsPage = () => {
               {projects.map(project => (
                 <div
                   key={project.id}
-                  className="group relative rounded-[0.5rem] bg-surface-container-low p-[2.4rem] shadow-sm transition-colors hover:bg-surface-container">
+                  onClick={() => setSelectedProjectId(project.id)}
+                  className={`group relative cursor-pointer rounded-[0.5rem] bg-surface-container-low p-[2.4rem] shadow-sm transition-all hover:bg-surface-container ${
+                    selectedProjectId === project.id
+                      ? "ring-2 ring-primary/50"
+                      : ""
+                  }`}>
                   <div
                     className="mb-[1.6rem] h-[0.4rem] w-[4rem] rounded-full"
                     style={{ backgroundColor: project.color ?? "#9fd0cd" }}
@@ -200,7 +391,10 @@ const ProjectsPage = () => {
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleDelete(project.id)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleDelete(project.id);
+                      }}
                       disabled={deleteMutation.isPending}
                       className="opacity-0 transition-opacity group-hover:opacity-100">
                       <DeleteIcon size="1.8rem" />

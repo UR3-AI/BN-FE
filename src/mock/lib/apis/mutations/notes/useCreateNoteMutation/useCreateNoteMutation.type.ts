@@ -1,4 +1,5 @@
 export interface NoteCreateRequest {
+  title?: string;
   content: string;
   source_type?: "text" | "voice_stt" | "link";
 }
