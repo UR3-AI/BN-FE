@@ -23,6 +23,7 @@ import useNoteStream from "@/mock/lib/hooks/useNoteStream/useNoteStream";
 import { useQueryClient } from "@tanstack/react-query";
 
 import AISidePanel from "./components/AISidePanel";
+import MarkdownEditor from "./components/MarkdownEditor";
 import NoteListPanel from "./components/NoteListPanel";
 import useEditorNote from "./hooks/useEditorNote";
 import useNoteEditor from "./hooks/useNoteEditor";
@@ -329,12 +330,11 @@ const EditorPage = () => {
           </div>
 
           {/* Article Content */}
-          <textarea
+          <MarkdownEditor
+            key={selectedNoteNumber}
             value={content}
-            onChange={e => onContentChange(e.target.value)}
+            onChange={onContentChange}
             placeholder="Start writing..."
-            className="w-full flex-1 resize-none bg-transparent font-body text-[2rem] leading-relaxed text-on-surface/90 outline-none placeholder:text-on-surface-variant"
-            style={{ minHeight: "40rem", fieldSizing: "content" as never }}
           />
 
           {/* Attachments */}
