@@ -319,7 +319,7 @@ const parseTableRows = (raw: string): string[][] => {
       .trim()
       .replace(/^\||\|$/g, "")
       .split("|")
-      .map(cell => cell.trim()),
+      .map(cell => cell.replace(/^ | $/g, "")),
   );
 };
 
@@ -341,6 +341,44 @@ const TableBlock = ({
   const separatorIdx = rows.findIndex(r => isSeparatorRow(r));
   const dataRows = separatorIdx >= 0 ? rows.slice(separatorIdx + 1) : rows.slice(1);
   const colCount = headerRow.length;
+
+  // Column resize state
+  const [colWidths, setColWidths] = useState<number[]>(() =>
+    Array(colCount).fill(Math.floor(100 / colCount)),
+  );
+  const resizeRef = useRef<{ colIdx: number; startX: number; startWidth: number } | null>(null);
+
+  // Sync colWidths length when columns are added/removed
+  const effectiveColWidths =
+    colWidths.length === colCount
+      ? colWidths
+      : Array(colCount).fill(Math.floor(100 / colCount));
+
+  const handleResizeStart = (colIdx: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    const tableEl = (e.target as HTMLElement).closest("table");
+    if (!tableEl) return;
+    const tableWidth = tableEl.clientWidth;
+    const startWidth = (effectiveColWidths[colIdx] / 100) * tableWidth;
+    resizeRef.current = { colIdx, startX: e.clientX, startWidth };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const delta = ev.clientX - resizeRef.current.startX;
+      const newPx = Math.max(40, resizeRef.current.startWidth + delta);
+      const newPct = Math.round((newPx / tableWidth) * 100);
+      setColWidths(prev => prev.map((w, i) => (i === resizeRef.current!.colIdx ? newPct : w)));
+    };
+
+    const onMouseUp = () => {
+      resizeRef.current = null;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
 
   const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {
     const allRows = parseTableRows(block.raw);
@@ -385,19 +423,33 @@ const TableBlock = ({
   return (
     <div className="group/table my-[0.8rem]">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            {effectiveColWidths.map((w, i) => (
+              <col
+                key={i}
+                style={{ width: `${w}%` }}
+              />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               {headerRow.map((cell, ci) => (
                 <th
                   key={ci}
-                  className="border border-outline-variant/20 bg-surface-container px-[1.2rem] py-[0.8rem] text-left text-[1.4rem] font-semibold text-on-surface">
+                  className="relative border border-outline-variant/20 bg-surface-container px-[1.2rem] py-[0.8rem] text-left text-[1.4rem] font-semibold text-on-surface">
                   <input
                     type="text"
                     value={cell}
                     onChange={e => handleCellChange(-1, ci, e.target.value)}
                     className="w-full bg-transparent outline-none"
                   />
+                  {ci < colCount - 1 && (
+                    <div
+                      className="absolute top-0 right-[-0.3rem] h-full w-[0.6rem] cursor-col-resize hover:bg-primary/30"
+                      onMouseDown={e => handleResizeStart(ci, e)}
+                    />
+                  )}
                 </th>
               ))}
             </tr>
