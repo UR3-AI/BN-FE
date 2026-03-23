@@ -342,19 +342,14 @@ const TableBlock = ({
   const dataRows = separatorIdx >= 0 ? rows.slice(separatorIdx + 1) : rows.slice(1);
   const colCount = headerRow.length;
 
-  // Column resize state
-  const [colWidths, setColWidths] = useState<number[]>(() =>
-    Array(colCount).fill(Math.floor(100 / colCount)),
-  );
+  // Column resize: store per-column width overrides (colIdx -> pct)
+  const [colWidthOverrides, setColWidthOverrides] = useState<Record<number, number>>({});
   const resizeRef = useRef<{ colIdx: number; startX: number; startWidth: number } | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  // Sync colWidths when column count changes
-  const effectiveColWidths = colWidths.length === colCount ? colWidths : (() => {
-    const reset = Array(colCount).fill(Math.floor(100 / colCount));
-    setColWidths(reset);
-    return reset;
-  })();
+  const colWidths = Array.from({ length: colCount }, (_, i) =>
+    colWidthOverrides[i] ?? Math.floor(100 / colCount),
+  );
 
   // Cleanup resize listeners on unmount
   useEffect(() => {
@@ -368,7 +363,7 @@ const TableBlock = ({
     const tableEl = (e.target as HTMLElement).closest("table");
     if (!tableEl) return;
     const tableWidth = tableEl.clientWidth;
-    const startWidth = (effectiveColWidths[colIdx] / 100) * tableWidth;
+    const startWidth = (colWidths[colIdx] / 100) * tableWidth;
     resizeRef.current = { colIdx, startX: e.clientX, startWidth };
 
     const onMouseMove = (ev: MouseEvent) => {
@@ -376,23 +371,21 @@ const TableBlock = ({
       const delta = ev.clientX - resizeRef.current.startX;
       const newPx = Math.max(40, resizeRef.current.startWidth + delta);
       const newPct = Math.round((newPx / tableWidth) * 100);
-      setColWidths(prev => {
-        const updated = [...prev];
-        if (resizeRef.current && updated[resizeRef.current.colIdx] !== undefined) {
-          updated[resizeRef.current.colIdx] = newPct;
-        }
-        return updated;
-      });
+      if (resizeRef.current) {
+        setColWidthOverrides(prev => ({ ...prev, [resizeRef.current!.colIdx]: newPct }));
+      }
     };
 
-    const onMouseUp = () => {
+    const cleanup = () => {
       resizeRef.current = null;
       cleanupRef.current = null;
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
 
-    cleanupRef.current = onMouseUp;
+    const onMouseUp = () => cleanup();
+
+    cleanupRef.current = cleanup;
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   };
@@ -427,6 +420,7 @@ const TableBlock = ({
     allRows.forEach((row, i) => {
       row.push(isSeparatorRow(row) ? "---" : i === 0 ? `Column ${row.length + 1}` : "");
     });
+    setColWidthOverrides({});
     onChange(rebuildTableRaw(allRows));
   };
 
@@ -434,6 +428,7 @@ const TableBlock = ({
     const allRows = parseTableRows(block.raw);
     if (allRows[0].length <= 1) return;
     allRows.forEach(row => row.pop());
+    setColWidthOverrides({});
     onChange(rebuildTableRaw(allRows));
   };
 
@@ -442,7 +437,7 @@ const TableBlock = ({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
-            {effectiveColWidths.map((w, i) => (
+            {colWidths.map((w, i) => (
               <col
                 key={i}
                 style={{ width: `${w}%` }}
@@ -618,6 +613,12 @@ const BlockEditor = ({
     if (el.innerHTML !== html) {
       el.innerHTML = html;
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
   };
 
   const getSlashFilter = (el: HTMLDivElement): string | null => {
@@ -800,6 +801,7 @@ const BlockEditor = ({
           onBlur={handleBlur}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           onCompositionStart={() => {
             isComposing.current = true;
           }}
@@ -822,6 +824,7 @@ const BlockEditor = ({
       onBlur={handleBlur}
       onInput={handleInput}
       onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
       onCompositionStart={() => {
         isComposing.current = true;
       }}
@@ -1038,14 +1041,20 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         // Update current block
         const updatedCurrent: Block = { ...block, raw: indent + prefix + before };
 
+        // Empty list item -> convert to paragraph (no new block)
+        if ((block.type === "ul" || block.type === "ol") && before.trim() === "") {
+          const converted: Block = { ...block, type: "paragraph", raw: "", indent: 0 };
+          const updated = prev.map((b, i) => (i === index ? converted : b));
+          pendingFocusIndex.current = index;
+          pendingFocusOffset.current = -1;
+          notifyChange(updated);
+          return updated;
+        }
+
         // New block: for list items, continue list; otherwise paragraph
         let newRaw: string;
         let newType: BlockType;
-        if ((block.type === "ul" || block.type === "ol") && before.trim() === "") {
-          // Empty list item -> exit list
-          newRaw = "";
-          newType = "paragraph";
-        } else if (block.type === "ul") {
+        if (block.type === "ul") {
           newRaw = indent + "- " + after;
           newType = "ul";
         } else if (block.type === "ol") {
@@ -1129,7 +1138,9 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         const newIndent = shift ? Math.max(0, block.indent - 1) : block.indent + 1;
         const oldIndentStr = "  ".repeat(block.indent);
         const newIndentStr = "  ".repeat(newIndent);
-        const newRaw = block.raw.replace(new RegExp(`^${oldIndentStr}`), newIndentStr);
+        const newRaw = block.raw.startsWith(oldIndentStr)
+          ? newIndentStr + block.raw.slice(oldIndentStr.length)
+          : newIndentStr + block.raw;
         const updated = prev.map((b, i) =>
           i === index ? { ...b, indent: newIndent, raw: newRaw } : b,
         );
