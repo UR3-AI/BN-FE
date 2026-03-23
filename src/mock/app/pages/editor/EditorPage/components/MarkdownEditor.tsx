@@ -323,6 +323,9 @@ const parseTableRows = (raw: string): string[][] => {
 const isSeparatorRow = (cells: string[]): boolean =>
   cells.every(cell => /^-{2,}$/.test(cell.trim()));
 
+const rebuildTableRaw = (allRows: string[][]): string =>
+  allRows.map(r => `| ${r.join(" | ")} |`).join("\n");
+
 const TableBlock = ({
   block,
   onChange,
@@ -340,55 +343,115 @@ const TableBlock = ({
     const allRows = parseTableRows(block.raw);
     const targetIdx = separatorIdx >= 0 ? rowIdx + separatorIdx + 1 : rowIdx + 1;
     if (rowIdx === -1) {
-      // Header
       allRows[0][colIdx] = value;
     } else if (allRows[targetIdx]) {
       allRows[targetIdx][colIdx] = value;
     }
-    const newRaw = allRows
-      .map(r => `| ${r.join(" | ")} |`)
-      .join("\n");
-    onChange(newRaw);
+    onChange(rebuildTableRaw(allRows));
+  };
+
+  const addRow = () => {
+    const allRows = parseTableRows(block.raw);
+    allRows.push(Array(colCount).fill(""));
+    onChange(rebuildTableRaw(allRows));
+  };
+
+  const removeRow = () => {
+    const allRows = parseTableRows(block.raw);
+    const lastDataIdx = allRows.length - 1;
+    if (lastDataIdx <= (separatorIdx >= 0 ? separatorIdx + 1 : 1)) return;
+    allRows.splice(lastDataIdx, 1);
+    onChange(rebuildTableRaw(allRows));
+  };
+
+  const addColumn = () => {
+    const allRows = parseTableRows(block.raw);
+    allRows.forEach((row, i) => {
+      row.push(isSeparatorRow(row) ? "---" : i === 0 ? `Column ${row.length + 1}` : "");
+    });
+    onChange(rebuildTableRaw(allRows));
+  };
+
+  const removeColumn = () => {
+    const allRows = parseTableRows(block.raw);
+    if (allRows[0].length <= 1) return;
+    allRows.forEach(row => row.pop());
+    onChange(rebuildTableRaw(allRows));
   };
 
   return (
-    <div className="my-[0.8rem] overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            {headerRow.map((cell, ci) => (
-              <th
-                key={ci}
-                className="border border-outline-variant/20 bg-surface-container px-[1.2rem] py-[0.8rem] text-left text-[1.4rem] font-semibold text-on-surface">
-                <input
-                  type="text"
-                  value={cell}
-                  onChange={e => handleCellChange(-1, ci, e.target.value)}
-                  className="w-full bg-transparent outline-none"
-                />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {dataRows.map((row, ri) => (
-            <tr key={ri}>
-              {Array.from({ length: colCount }, (_, ci) => (
-                <td
+    <div className="group/table my-[0.8rem]">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {headerRow.map((cell, ci) => (
+                <th
                   key={ci}
-                  className="border border-outline-variant/20 px-[1.2rem] py-[0.8rem] text-[1.4rem] text-on-surface/90">
+                  className="border border-outline-variant/20 bg-surface-container px-[1.2rem] py-[0.8rem] text-left text-[1.4rem] font-semibold text-on-surface">
                   <input
                     type="text"
-                    value={row[ci] ?? ""}
-                    onChange={e => handleCellChange(ri, ci, e.target.value)}
+                    value={cell}
+                    onChange={e => handleCellChange(-1, ci, e.target.value)}
                     className="w-full bg-transparent outline-none"
                   />
-                </td>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri}>
+                {Array.from({ length: colCount }, (_, ci) => (
+                  <td
+                    key={ci}
+                    className="border border-outline-variant/20 px-[1.2rem] py-[0.8rem] text-[1.4rem] text-on-surface/90">
+                    <input
+                      type="text"
+                      value={row[ci] ?? ""}
+                      onChange={e => handleCellChange(ri, ci, e.target.value)}
+                      className="w-full bg-transparent outline-none"
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Row/Column controls */}
+      <div className="mt-[0.6rem] flex items-center gap-[0.8rem] opacity-0 transition-opacity group-hover/table:opacity-100">
+        <button
+          type="button"
+          onClick={addRow}
+          className="rounded-[0.25rem] border border-outline-variant/20 px-[1rem] py-[0.3rem] text-[1.1rem] text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface">
+          + Row
+        </button>
+        <button
+          type="button"
+          onClick={removeRow}
+          disabled={dataRows.length <= 1}
+          className="rounded-[0.25rem] border border-outline-variant/20 px-[1rem] py-[0.3rem] text-[1.1rem] text-on-surface-variant transition-colors hover:bg-error/10 hover:text-error disabled:opacity-30">
+          − Row
+        </button>
+        <div className="h-[1.4rem] w-px bg-outline-variant/20" />
+        <button
+          type="button"
+          onClick={addColumn}
+          className="rounded-[0.25rem] border border-outline-variant/20 px-[1rem] py-[0.3rem] text-[1.1rem] text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface">
+          + Column
+        </button>
+        <button
+          type="button"
+          onClick={removeColumn}
+          disabled={colCount <= 1}
+          className="rounded-[0.25rem] border border-outline-variant/20 px-[1rem] py-[0.3rem] text-[1.1rem] text-on-surface-variant transition-colors hover:bg-error/10 hover:text-error disabled:opacity-30">
+          − Column
+        </button>
+        <div className="ml-auto text-[1rem] text-outline">
+          {dataRows.length} × {colCount}
+        </div>
+      </div>
     </div>
   );
 };
@@ -876,7 +939,8 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
       setBlocks(prev => {
         const updated = prev.map((b, i) => {
           if (i !== index) return b;
-          const newType = detectBlockType(raw.trim());
+          // Table blocks keep their type (multi-line raw with \n)
+          const newType = b.type === "table" ? "table" : detectBlockType(raw.trim());
           return { ...b, raw, type: newType };
         });
         notifyChange(updated);
