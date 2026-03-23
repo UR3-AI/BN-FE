@@ -1,4 +1,5 @@
 import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
+import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 
 import {
   CheckboxBlankIcon,
@@ -7,16 +8,80 @@ import {
   TreeIcon,
 } from "@/mock/app/components/Icons";
 
+const ENTITY_TYPE_COLORS: Record<string, string> = {
+  person: "#f4a8b5",
+  technology: "#a8c5f4",
+  project: "#9fd0cd",
+  concept: "#c4b5f4",
+  organization: "#ffe2ab",
+  topic: "#b5f4c4",
+};
+
+interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  x: number;
+  y: number;
+}
+
+const buildMiniGraph = (
+  noteTitle: string | null,
+  relatedNotes: RelatedNote[],
+): { nodes: GraphNode[]; edges: { from: string; to: string }[] } => {
+  const cx = 50;
+  const cy = 50;
+
+  // Center node = current note
+  const centerNode: GraphNode = {
+    id: "center",
+    label: noteTitle ?? "This Note",
+    type: "project",
+    x: cx,
+    y: cy,
+  };
+
+  // Collect unique entities from related notes
+  const entityMap = new Map<string, { name: string; type: string }>();
+  for (const note of relatedNotes) {
+    for (const entity of note.shared_entities) {
+      if (!entityMap.has(entity.name)) {
+        entityMap.set(entity.name, entity);
+      }
+    }
+  }
+
+  const entities = [...entityMap.values()].slice(0, 8);
+  const radius = 35;
+  const entityNodes: GraphNode[] = entities.map((e, i) => {
+    const angle = (2 * Math.PI * i) / entities.length - Math.PI / 2;
+    return {
+      id: `entity-${e.name}`,
+      label: e.name,
+      type: e.type,
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
+    };
+  });
+
+  const edges = entityNodes.map(n => ({ from: "center", to: n.id }));
+
+  return { nodes: [centerNode, ...entityNodes], edges };
+};
+
 interface AISidePanelProps {
   summary: string | null;
   content: string | null;
   tags: string[];
   actions: ActionItemResponse[];
+  relatedNotes: RelatedNote[];
+  noteTitle: string | null;
   isProcessing: boolean;
 }
 
-const AISidePanel = ({ summary, content, tags, actions, isProcessing }: AISidePanelProps) => {
+const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle, isProcessing }: AISidePanelProps) => {
   const isResearch = tags.includes("research") || tags.includes("auto-generated");
+  const { nodes: graphNodes, edges: graphEdges } = buildMiniGraph(noteTitle, relatedNotes);
   return (
     <div className="p-[2.4rem]">
       {/* Header */}
@@ -136,19 +201,84 @@ const AISidePanel = ({ summary, content, tags, actions, isProcessing }: AISidePa
         </div>
       </div>
 
-      {/* Contextual Graph Placeholder */}
-      <div className="mt-[4.8rem] flex aspect-square flex-col items-center justify-center rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-lowest p-[1.6rem] text-center">
-        <div className="relative mb-[1.6rem] flex h-[12.8rem] w-[12.8rem] items-center justify-center">
-          <TreeIcon
-            size="3rem"
-            fill="#ffe2ab"
-          />
-        </div>
-        <span className="text-[1rem] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
+      {/* Contextual Graph */}
+      <div className="mt-[4.8rem] rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-lowest p-[1.6rem]">
+        <span className="mb-[1.2rem] block text-[1rem] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
           Contextual Graph
         </span>
-        <p className="mt-[0.8rem] px-[1.6rem] text-[1rem] text-outline">
-          {actions.length} active nodes identified in current text segment
+        {graphNodes.length <= 1 ? (
+          <div className="flex flex-col items-center justify-center py-[4rem] text-center">
+            <TreeIcon
+              size="3rem"
+              fill="#ffe2ab"
+              className="mb-[1.2rem] opacity-40"
+            />
+            <p className="text-[1rem] text-outline">
+              No entity connections found
+            </p>
+          </div>
+        ) : (
+          <div className="relative aspect-square w-full">
+            <svg
+              viewBox="0 0 100 100"
+              className="h-full w-full">
+              {/* Edges */}
+              {graphEdges.map(edge => {
+                const from = graphNodes.find(n => n.id === edge.from);
+                const to = graphNodes.find(n => n.id === edge.to);
+                if (!from || !to) return null;
+                return (
+                  <line
+                    key={`${edge.from}-${edge.to}`}
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke="#9fd0cd"
+                    strokeWidth="0.3"
+                    opacity="0.4"
+                  />
+                );
+              })}
+              {/* Nodes */}
+              {graphNodes.map(node => {
+                const isCenter = node.id === "center";
+                const color = ENTITY_TYPE_COLORS[node.type] ?? "#9c8f78";
+                const r = isCenter ? 4.5 : 3;
+                return (
+                  <g key={node.id}>
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={r}
+                      fill={isCenter ? "#1a1a1a" : "#1a1a1a"}
+                      stroke={isCenter ? "#ffe2ab" : color}
+                      strokeWidth={isCenter ? "0.8" : "0.5"}
+                    />
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={r - 1.2}
+                      fill={isCenter ? "#ffe2ab" : color}
+                      opacity={isCenter ? 0.8 : 0.6}
+                    />
+                    <text
+                      x={node.x}
+                      y={node.y + r + 3}
+                      textAnchor="middle"
+                      fill={isCenter ? "#ffe2ab" : "#a8a29e"}
+                      fontSize={isCenter ? "3" : "2.5"}
+                      fontWeight={isCenter ? "bold" : "normal"}>
+                      {node.label.length > 8 ? node.label.slice(0, 7) + "…" : node.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
+        <p className="mt-[0.8rem] text-center text-[1rem] text-outline">
+          {graphNodes.length - 1} entities connected
         </p>
       </div>
     </div>

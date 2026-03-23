@@ -119,6 +119,8 @@ const EditorPage = () => {
             content={null}
             tags={[]}
             actions={[]}
+            relatedNotes={[]}
+            noteTitle={null}
             isProcessing={false}
           />
         }>
@@ -150,6 +152,8 @@ const EditorPage = () => {
             content={null}
             tags={[]}
             actions={[]}
+            relatedNotes={[]}
+            noteTitle={null}
             isProcessing={false}
           />
         }>
@@ -233,6 +237,8 @@ const EditorPage = () => {
           content={noteDetail.content}
           tags={noteDetail.tags}
           actions={actions}
+          relatedNotes={relatedNotes}
+          noteTitle={noteDetail.title}
           isProcessing={isProcessing}
         />
       }>
