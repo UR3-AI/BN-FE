@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -12,6 +12,9 @@ import {
   MergeIcon,
   PsychologyIcon,
   SparklesIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  DragPanIcon,
 } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useDeleteEntityMutation from "@/mock/lib/apis/mutations/graph/useDeleteEntityMutation/useDeleteEntityMutation";
@@ -65,6 +68,51 @@ const GraphPage = () => {
   const [selectedUid, setSelectedUid] = useState<string>("");
   const [mergeTarget, setMergeTarget] = useState<string>("");
   const [editingName, setEditingName] = useState<string | null>(null);
+
+  // Pan & Zoom state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(prev => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.001)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  const handleCanvasMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      isPanningRef.current = true;
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    },
+    [pan],
+  );
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanningRef.current) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy });
+  }, []);
+
+  const handleCanvasMouseUp = useCallback(() => {
+    isPanningRef.current = false;
+  }, []);
+
+  const handleZoomIn = () => setZoom(prev => Math.min(3, prev + 0.2));
+  const handleZoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.2));
+  const handleResetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
 
   const { data: vizData, isLoading: isVizLoading } = useGraphVisualizationQuery(MAX_NODES);
   const { data: statsData } = useGraphStatsQuery();
@@ -140,11 +188,43 @@ const GraphPage = () => {
       showSearch={false}>
       {/* Canvas Area */}
       <div
-        className="relative flex-1 cursor-crosshair overflow-hidden bg-surface-container-lowest"
+        ref={canvasRef}
+        className="relative flex-1 overflow-hidden bg-surface-container-lowest"
         style={{
           backgroundImage: "radial-gradient(circle, #2a2a2a 1px, transparent 1px)",
           backgroundSize: "40px 40px",
-        }}>
+          cursor: isPanningRef.current ? "grabbing" : "grab",
+        }}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleCanvasMouseUp}
+        onMouseLeave={handleCanvasMouseUp}>
+        {/* Zoom Controls (Right Top) */}
+        <div className="absolute right-[34rem] top-[2.4rem] z-50 flex flex-col gap-[0.4rem]">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="flex h-[3.6rem] w-[3.6rem] items-center justify-center rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-high/80 text-on-surface-variant shadow-lg backdrop-blur-md transition-colors hover:bg-surface-container-highest hover:text-on-surface">
+            <ZoomInIcon size="2rem" fill="currentColor" />
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="flex h-[3.6rem] w-[3.6rem] items-center justify-center rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-high/80 text-on-surface-variant shadow-lg backdrop-blur-md transition-colors hover:bg-surface-container-highest hover:text-on-surface">
+            <ZoomOutIcon size="2rem" fill="currentColor" />
+          </button>
+          <button
+            type="button"
+            onClick={handleResetView}
+            className="flex h-[3.6rem] w-[3.6rem] items-center justify-center rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-high/80 text-on-surface-variant shadow-lg backdrop-blur-md transition-colors hover:bg-surface-container-highest hover:text-on-surface"
+            title="Reset view">
+            <DragPanIcon size="2rem" fill="currentColor" />
+          </button>
+          <span className="mt-[0.4rem] text-center text-[1rem] font-medium text-outline">
+            {Math.round(zoom * 100)}%
+          </span>
+        </div>
+
         {/* Type Legend (Left Top) */}
         <div className="absolute left-[2.4rem] top-[2.4rem] z-30">
           <div className="rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-high/80 p-[1.2rem] shadow-xl backdrop-blur-md">
@@ -174,88 +254,101 @@ const GraphPage = () => {
           </div>
         )}
 
-        {/* Graph Connections (SVG) */}
-        {!isVizLoading && (
-          <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-40">
-            {edges.map((edge, i) => {
-              const sourcePos = getPosition(edge.source);
-              const targetPos = getPosition(edge.target);
-              if (!sourcePos || !targetPos) return null;
+        {/* Pannable + Zoomable Layer */}
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "center center",
+            transition: isPanningRef.current ? "none" : "transform 0.15s ease-out",
+          }}>
+          {/* Graph Connections (SVG) */}
+          {!isVizLoading && (
+            <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-40">
+              {edges.map((edge, i) => {
+                const sourcePos = getPosition(edge.source);
+                const targetPos = getPosition(edge.target);
+                if (!sourcePos || !targetPos) return null;
+                return (
+                  <line
+                    key={i}
+                    x1={`${sourcePos.x}%`}
+                    y1={`${sourcePos.y}%`}
+                    x2={`${targetPos.x}%`}
+                    y2={`${targetPos.y}%`}
+                    stroke="#9fd0cd"
+                    strokeWidth="1.5"
+                  />
+                );
+              })}
+            </svg>
+          )}
+
+          {/* Graph Nodes */}
+          {!isVizLoading &&
+            nodes.map((node, index) => {
+              const pos = getPosition(node.id);
+              if (!pos) return null;
+              const isSelected = node.id === selectedUid;
+              const isCenter = index === 0;
+              const isNeighbor = neighborIds.has(node.id);
+              const isMergeTarget = node.id === mergeTarget;
+
               return (
-                <line
-                  key={i}
-                  x1={`${sourcePos.x}%`}
-                  y1={`${sourcePos.y}%`}
-                  x2={`${targetPos.x}%`}
-                  y2={`${targetPos.y}%`}
-                  stroke="#9fd0cd"
-                  strokeWidth="1.5"
-                />
+                <div
+                  key={node.id}
+                  className="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleNodeClick(node.id);
+                  }}
+                  onMouseDown={e => e.stopPropagation()}
+                  onContextMenu={e => handleNodeRightClick(e, node.id)}>
+                  <div
+                    className={`flex items-center justify-center rounded-full border transition-transform hover:scale-110 ${
+                      isMergeTarget
+                        ? "h-[4.8rem] w-[4.8rem] border-2 border-dashed border-secondary bg-surface-container-highest"
+                        : isCenter
+                          ? "h-[6.4rem] w-[6.4rem] border-2 border-primary bg-surface-container-highest shadow-[0_0_0_0_rgba(255,226,171,0.4)]"
+                          : isSelected
+                            ? "h-[4.8rem] w-[4.8rem] border-2 border-primary bg-surface-container-highest"
+                            : isNeighbor
+                              ? "h-[4rem] w-[4rem] border border-primary/50 bg-surface-container-highest"
+                              : "h-[4rem] w-[4rem] border border-secondary bg-surface-container-highest"
+                    }`}>
+                    {isCenter ? (
+                      <PsychologyIcon
+                        size="3rem"
+                        fill="#ffe2ab"
+                      />
+                    ) : (
+                      <DatabaseIcon
+                        size="2rem"
+                        fill={isSelected || isMergeTarget ? "#ffe2ab" : getNodeColor(node.type)}
+                      />
+                    )}
+                  </div>
+                  <div className="absolute -bottom-[4rem] left-1/2 -translate-x-1/2 whitespace-nowrap text-center">
+                    <span
+                      className={`text-[1.2rem] font-medium ${isCenter ? "text-[1.4rem] text-primary" : isMergeTarget ? "text-secondary" : "text-on-surface"}`}>
+                      {node.label}
+                    </span>
+                    {isMergeTarget && (
+                      <p className="text-[1rem] uppercase tracking-[0.15em] text-secondary">
+                        Merge Target
+                      </p>
+                    )}
+                    {isCenter && !isMergeTarget && (
+                      <p className="text-[1rem] uppercase tracking-[0.15em] text-outline">
+                        Active Focus
+                      </p>
+                    )}
+                  </div>
+                </div>
               );
             })}
-          </svg>
-        )}
-
-        {/* Graph Nodes */}
-        {!isVizLoading &&
-          nodes.map((node, index) => {
-            const pos = getPosition(node.id);
-            if (!pos) return null;
-            const isSelected = node.id === selectedUid;
-            const isCenter = index === 0;
-            const isNeighbor = neighborIds.has(node.id);
-            const isMergeTarget = node.id === mergeTarget;
-
-            return (
-              <div
-                key={node.id}
-                className="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                onClick={() => handleNodeClick(node.id)}
-                onContextMenu={e => handleNodeRightClick(e, node.id)}>
-                <div
-                  className={`flex items-center justify-center rounded-full border transition-transform hover:scale-110 ${
-                    isMergeTarget
-                      ? "h-[4.8rem] w-[4.8rem] border-2 border-dashed border-secondary bg-surface-container-highest"
-                      : isCenter
-                        ? "h-[6.4rem] w-[6.4rem] border-2 border-primary bg-surface-container-highest shadow-[0_0_0_0_rgba(255,226,171,0.4)]"
-                        : isSelected
-                          ? "h-[4.8rem] w-[4.8rem] border-2 border-primary bg-surface-container-highest"
-                          : isNeighbor
-                            ? "h-[4rem] w-[4rem] border border-primary/50 bg-surface-container-highest"
-                            : "h-[4rem] w-[4rem] border border-secondary bg-surface-container-highest"
-                  }`}>
-                  {isCenter ? (
-                    <PsychologyIcon
-                      size="3rem"
-                      fill="#ffe2ab"
-                    />
-                  ) : (
-                    <DatabaseIcon
-                      size="2rem"
-                      fill={isSelected || isMergeTarget ? "#ffe2ab" : getNodeColor(node.type)}
-                    />
-                  )}
-                </div>
-                <div className="absolute -bottom-[4rem] left-1/2 -translate-x-1/2 whitespace-nowrap text-center">
-                  <span
-                    className={`text-[1.2rem] font-medium ${isCenter ? "text-[1.4rem] text-primary" : isMergeTarget ? "text-secondary" : "text-on-surface"}`}>
-                    {node.label}
-                  </span>
-                  {isMergeTarget && (
-                    <p className="text-[1rem] uppercase tracking-[0.15em] text-secondary">
-                      Merge Target
-                    </p>
-                  )}
-                  {isCenter && !isMergeTarget && (
-                    <p className="text-[1rem] uppercase tracking-[0.15em] text-outline">
-                      Active Focus
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        </div>
 
         {/* Bottom Bar */}
         <div className="absolute bottom-[3.2rem] left-1/2 z-40 flex -translate-x-1/2 items-center gap-[2.4rem] rounded-full border border-outline-variant/20 bg-surface-container-highest px-[2.4rem] py-[1.6rem] shadow-2xl">
