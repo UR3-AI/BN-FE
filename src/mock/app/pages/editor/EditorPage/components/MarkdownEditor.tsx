@@ -347,12 +347,21 @@ const TableBlock = ({
     Array(colCount).fill(Math.floor(100 / colCount)),
   );
   const resizeRef = useRef<{ colIdx: number; startX: number; startWidth: number } | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  // Sync colWidths length when columns are added/removed
-  const effectiveColWidths =
-    colWidths.length === colCount
-      ? colWidths
-      : Array(colCount).fill(Math.floor(100 / colCount));
+  // Sync colWidths when column count changes
+  const effectiveColWidths = colWidths.length === colCount ? colWidths : (() => {
+    const reset = Array(colCount).fill(Math.floor(100 / colCount));
+    setColWidths(reset);
+    return reset;
+  })();
+
+  // Cleanup resize listeners on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   const handleResizeStart = (colIdx: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -367,15 +376,23 @@ const TableBlock = ({
       const delta = ev.clientX - resizeRef.current.startX;
       const newPx = Math.max(40, resizeRef.current.startWidth + delta);
       const newPct = Math.round((newPx / tableWidth) * 100);
-      setColWidths(prev => prev.map((w, i) => (i === resizeRef.current!.colIdx ? newPct : w)));
+      setColWidths(prev => {
+        const updated = [...prev];
+        if (resizeRef.current && updated[resizeRef.current.colIdx] !== undefined) {
+          updated[resizeRef.current.colIdx] = newPct;
+        }
+        return updated;
+      });
     };
 
     const onMouseUp = () => {
       resizeRef.current = null;
+      cleanupRef.current = null;
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
 
+    cleanupRef.current = onMouseUp;
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   };

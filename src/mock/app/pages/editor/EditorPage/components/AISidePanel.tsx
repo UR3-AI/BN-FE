@@ -245,13 +245,15 @@ const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle,
                 const isCenter = node.id === "center";
                 const color = ENTITY_TYPE_COLORS[node.type] ?? "#9c8f78";
                 const r = isCenter ? 4.5 : 3;
+                const labelBelow = node.y <= 50;
+                const labelY = labelBelow ? node.y + r + 3.5 : node.y - r - 1.5;
                 return (
                   <g key={node.id}>
                     <circle
                       cx={node.x}
                       cy={node.y}
                       r={r}
-                      fill={isCenter ? "#1a1a1a" : "#1a1a1a"}
+                      fill="#1a1a1a"
                       stroke={isCenter ? "#ffe2ab" : color}
                       strokeWidth={isCenter ? "0.8" : "0.5"}
                     />
@@ -264,8 +266,9 @@ const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle,
                     />
                     <text
                       x={node.x}
-                      y={node.y + r + 3}
+                      y={labelY}
                       textAnchor="middle"
+                      dominantBaseline={labelBelow ? "hanging" : "auto"}
                       fill={isCenter ? "#ffe2ab" : "#a8a29e"}
                       fontSize={isCenter ? "3" : "2.5"}
                       fontWeight={isCenter ? "bold" : "normal"}>
