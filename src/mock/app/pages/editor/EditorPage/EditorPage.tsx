@@ -116,6 +116,7 @@ const EditorPage = () => {
         sidePanel={
           <AISidePanel
             summary={null}
+            content={null}
             tags={[]}
             actions={[]}
             isProcessing={false}
@@ -146,6 +147,7 @@ const EditorPage = () => {
         sidePanel={
           <AISidePanel
             summary={null}
+            content={null}
             tags={[]}
             actions={[]}
             isProcessing={false}
@@ -228,6 +230,7 @@ const EditorPage = () => {
       sidePanel={
         <AISidePanel
           summary={noteDetail.summary}
+          content={noteDetail.content}
           tags={noteDetail.tags}
           actions={actions}
           isProcessing={isProcessing}

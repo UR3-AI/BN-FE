@@ -9,12 +9,14 @@ import {
 
 interface AISidePanelProps {
   summary: string | null;
+  content: string | null;
   tags: string[];
   actions: ActionItemResponse[];
   isProcessing: boolean;
 }
 
-const AISidePanel = ({ summary, tags, actions, isProcessing }: AISidePanelProps) => {
+const AISidePanel = ({ summary, content, tags, actions, isProcessing }: AISidePanelProps) => {
+  const isResearch = tags.includes("research") || tags.includes("auto-generated");
   return (
     <div className="p-[2.4rem]">
       {/* Header */}
@@ -45,6 +47,24 @@ const AISidePanel = ({ summary, tags, actions, isProcessing }: AISidePanelProps)
           {summary ?? "No summary available"}
         </p>
       </div>
+
+      {/* Research Findings */}
+      {isResearch && content && (
+        <div className="mb-[2.4rem] rounded-[0.25rem] border border-secondary/20 bg-surface-container-low p-[2rem]">
+          <h3 className="mb-[1.2rem] flex items-center gap-[0.8rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-secondary">
+            <TreeIcon
+              size="1.6rem"
+              fill="#9fd0cd"
+            />
+            Research Findings
+          </h3>
+          <div className="max-h-[24rem] overflow-y-auto">
+            <p className="whitespace-pre-wrap text-[1.3rem] leading-relaxed text-on-surface/80">
+              {content}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Metadata Nodes */}
       <div className="mb-[3.2rem]">
