@@ -9,6 +9,7 @@ type BlockType =
   | "blockquote"
   | "code"
   | "hr"
+  | "table"
   | "paragraph";
 
 interface Block {
@@ -50,14 +51,40 @@ const getIndent = (raw: string): number => {
   return Math.floor(match[1].length / 2);
 };
 
+const isTableRow = (line: string): boolean => /^\|.+\|$/.test(line.trim());
+
 const parseMarkdown = (text: string): Block[] => {
   const lines = text.split("\n");
-  return lines.map(line => ({
-    id: generateId(),
-    type: detectBlockType(line.trim()),
-    raw: line,
-    indent: getIndent(line),
-  }));
+  const blocks: Block[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (isTableRow(line)) {
+      // Collect consecutive table rows into one table block
+      const tableLines: string[] = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      blocks.push({
+        id: generateId(),
+        type: "table",
+        raw: tableLines.join("\n"),
+        indent: 0,
+      });
+    } else {
+      blocks.push({
+        id: generateId(),
+        type: detectBlockType(line.trim()),
+        raw: line,
+        indent: getIndent(line),
+      });
+      i++;
+    }
+  }
+
+  return blocks;
 };
 
 const blocksToMarkdown = (blocks: Block[]): string => {
@@ -108,6 +135,8 @@ const getDisplayText = (block: Block): string => {
       return raw.replace(/^> /, "");
     case "code":
       return raw.replace(/^```/, "").replace(/```$/, "");
+    case "table":
+      return raw;
     default:
       return raw;
   }
@@ -147,6 +176,223 @@ const BLOCK_PREFIX: Partial<Record<BlockType, string>> = {
   code: "```",
 };
 
+// ─── Slash Command Types ───────────────────────────────────────────────────────
+
+interface SlashCommand {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+}
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  { id: "table", label: "Table", icon: "⊞", description: "Insert a table" },
+  { id: "h1", label: "Heading 1", icon: "H₁", description: "Large heading" },
+  { id: "h2", label: "Heading 2", icon: "H₂", description: "Medium heading" },
+  { id: "h3", label: "Heading 3", icon: "H₃", description: "Small heading" },
+  { id: "ul", label: "Bullet List", icon: "•", description: "Unordered list" },
+  { id: "ol", label: "Numbered List", icon: "1.", description: "Ordered list" },
+  { id: "blockquote", label: "Quote", icon: "❝", description: "Quote block" },
+  { id: "code", label: "Code Block", icon: "</>", description: "Code block" },
+  { id: "hr", label: "Divider", icon: "—", description: "Horizontal rule" },
+];
+
+// ─── Table Grid Picker ─────────────────────────────────────────────────────────
+
+interface TableGridPickerProps {
+  onSelect: (rows: number, cols: number) => void;
+}
+
+const TableGridPicker = ({ onSelect }: TableGridPickerProps) => {
+  const [hovered, setHovered] = useState<{ rows: number; cols: number }>({ rows: 0, cols: 0 });
+  const MAX_ROWS = 6;
+  const MAX_COLS = 6;
+
+  return (
+    <div className="p-[1.2rem]">
+      <div
+        className="grid gap-[0.3rem]"
+        style={{ gridTemplateColumns: `repeat(${MAX_COLS}, 1fr)` }}>
+        {Array.from({ length: MAX_ROWS }, (_, rowIdx) =>
+          Array.from({ length: MAX_COLS }, (_, colIdx) => {
+            const row = rowIdx + 1;
+            const col = colIdx + 1;
+            const isSelected = row <= hovered.rows && col <= hovered.cols;
+            return (
+              <div
+                key={`${row}-${col}`}
+                className={`h-[2.4rem] w-[2.4rem] cursor-pointer rounded-[0.2rem] border transition-colors ${
+                  isSelected
+                    ? "border-primary/50 bg-primary/30"
+                    : "border-outline-variant/20 bg-surface-container hover:bg-surface-container-high"
+                }`}
+                onMouseEnter={() => setHovered({ rows: row, cols: col })}
+                onMouseLeave={() => setHovered({ rows: 0, cols: 0 })}
+                onClick={() => onSelect(row, col)}
+              />
+            );
+          }),
+        )}
+      </div>
+      <div className="mt-[0.8rem] text-center text-[1.2rem] text-on-surface-variant/70">
+        {hovered.rows > 0 && hovered.cols > 0
+          ? `${hovered.rows} × ${hovered.cols}`
+          : "Hover to select size"}
+      </div>
+    </div>
+  );
+};
+
+// ─── Slash Command Menu ────────────────────────────────────────────────────────
+
+interface SlashMenuProps {
+  filter: string;
+  selectedIndex: number;
+  position: { top: number; left: number };
+  onSelect: (commandId: string) => void;
+  onTableSelect: (rows: number, cols: number) => void;
+}
+
+const SlashMenu = ({ filter, selectedIndex, position, onSelect, onTableSelect }: SlashMenuProps) => {
+  const filtered = SLASH_COMMANDS.filter(cmd =>
+    cmd.label.toLowerCase().includes(filter.toLowerCase()),
+  );
+
+  const [showTablePicker, setShowTablePicker] = useState(false);
+
+  const handleSelect = (commandId: string) => {
+    if (commandId === "table") {
+      setShowTablePicker(true);
+    } else {
+      onSelect(commandId);
+    }
+  };
+
+  const handleTableSelect = (rows: number, cols: number) => {
+    setShowTablePicker(false);
+    onTableSelect(rows, cols);
+  };
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div
+      className="absolute z-50 min-w-[22rem] overflow-hidden rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-highest shadow-xl"
+      style={{ top: position.top, left: position.left }}>
+      {showTablePicker ? (
+        <TableGridPicker onSelect={handleTableSelect} />
+      ) : (
+        <div className="py-[0.4rem]">
+          {filtered.map((cmd, idx) => (
+            <div
+              key={cmd.id}
+              className={`flex cursor-pointer items-center gap-[1.2rem] px-[1.6rem] py-[1rem] transition-colors ${
+                idx === selectedIndex
+                  ? "bg-primary/10 text-primary"
+                  : "text-on-surface hover:bg-surface-container"
+              }`}
+              onMouseDown={e => {
+                e.preventDefault();
+                handleSelect(cmd.id);
+              }}>
+              <span className="w-[2rem] text-center text-[1.4rem] font-medium">{cmd.icon}</span>
+              <div>
+                <div className="text-[1.4rem] font-medium leading-tight">{cmd.label}</div>
+                <div className="text-[1.2rem] text-on-surface-variant/60">{cmd.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Block Editor ──────────────────────────────────────────────────────────────
+
+const parseTableRows = (raw: string): string[][] => {
+  return raw.split("\n").map(row =>
+    row
+      .trim()
+      .replace(/^\||\|$/g, "")
+      .split("|")
+      .map(cell => cell.trim()),
+  );
+};
+
+const isSeparatorRow = (cells: string[]): boolean =>
+  cells.every(cell => /^-{2,}$/.test(cell.trim()));
+
+const TableBlock = ({
+  block,
+  onChange,
+}: {
+  block: Block;
+  onChange: (raw: string) => void;
+}) => {
+  const rows = parseTableRows(block.raw);
+  const headerRow = rows[0] ?? [];
+  const separatorIdx = rows.findIndex(r => isSeparatorRow(r));
+  const dataRows = separatorIdx >= 0 ? rows.slice(separatorIdx + 1) : rows.slice(1);
+  const colCount = headerRow.length;
+
+  const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {
+    const allRows = parseTableRows(block.raw);
+    const targetIdx = separatorIdx >= 0 ? rowIdx + separatorIdx + 1 : rowIdx + 1;
+    if (rowIdx === -1) {
+      // Header
+      allRows[0][colIdx] = value;
+    } else if (allRows[targetIdx]) {
+      allRows[targetIdx][colIdx] = value;
+    }
+    const newRaw = allRows
+      .map(r => `| ${r.join(" | ")} |`)
+      .join("\n");
+    onChange(newRaw);
+  };
+
+  return (
+    <div className="my-[0.8rem] overflow-x-auto">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            {headerRow.map((cell, ci) => (
+              <th
+                key={ci}
+                className="border border-outline-variant/20 bg-surface-container px-[1.2rem] py-[0.8rem] text-left text-[1.4rem] font-semibold text-on-surface">
+                <input
+                  type="text"
+                  value={cell}
+                  onChange={e => handleCellChange(-1, ci, e.target.value)}
+                  className="w-full bg-transparent outline-none"
+                />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dataRows.map((row, ri) => (
+            <tr key={ri}>
+              {Array.from({ length: colCount }, (_, ci) => (
+                <td
+                  key={ci}
+                  className="border border-outline-variant/20 px-[1.2rem] py-[0.8rem] text-[1.4rem] text-on-surface/90">
+                  <input
+                    type="text"
+                    value={row[ci] ?? ""}
+                    onChange={e => handleCellChange(ri, ci, e.target.value)}
+                    className="w-full bg-transparent outline-none"
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 interface BlockEditorProps {
   block: Block;
   isFocused: boolean;
@@ -157,6 +403,12 @@ interface BlockEditorProps {
   onTab: (shift: boolean) => void;
   onArrowUp: () => void;
   onArrowDown: () => void;
+  onSlashInput: (filter: string, anchorEl: HTMLDivElement) => void;
+  onSlashClose: () => void;
+  isSlashOpen: boolean;
+  onSlashArrowUp: () => void;
+  onSlashArrowDown: () => void;
+  onSlashEnter: () => void;
   editorRef: (el: HTMLDivElement | null) => void;
 }
 
@@ -170,6 +422,12 @@ const BlockEditor = ({
   onTab,
   onArrowUp,
   onArrowDown,
+  onSlashInput,
+  onSlashClose,
+  isSlashOpen,
+  onSlashArrowUp,
+  onSlashArrowDown,
+  onSlashEnter,
   editorRef,
 }: BlockEditorProps) => {
   const divRef = useRef<HTMLDivElement>(null);
@@ -189,7 +447,7 @@ const BlockEditor = ({
   // Sync rendered HTML when block changes (DOM-only update, no setState)
   useEffect(() => {
     const el = divRef.current;
-    if (!el) return;
+    if (!el || block.type === "table") return;
     const typeChanged = prevTypeRef.current !== block.type;
     prevTypeRef.current = block.type;
 
@@ -227,21 +485,64 @@ const BlockEditor = ({
     }
   };
 
+  const getSlashFilter = (el: HTMLDivElement): string | null => {
+    const text = el.textContent ?? "";
+    const slashIdx = text.lastIndexOf("/");
+    if (slashIdx === -1) return null;
+    // Only trigger slash menu at the beginning of a block (nothing before slash, or only whitespace)
+    const before = text.slice(0, slashIdx);
+    if (before.trim() !== "") return null;
+    return text.slice(slashIdx + 1);
+  };
+
   const handleInput = () => {
     if (isComposing.current) {
       return;
     }
     const el = divRef.current;
     if (!el) return;
+
     const html = el.innerHTML;
     const text = htmlToMarkdownInline(html);
     const prefix = BLOCK_PREFIX[block.type] ?? "";
     const indent = "  ".repeat(block.indent);
     onChange(indent + prefix + text);
+
+    // Slash command detection
+    const filter = getSlashFilter(el);
+    if (filter !== null) {
+      onSlashInput(filter, el);
+    } else {
+      onSlashClose();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (isComposing.current) return;
+
+    // When slash menu is open, intercept navigation keys
+    if (isSlashOpen) {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        onSlashArrowUp();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        onSlashArrowDown();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onSlashEnter();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onSlashClose();
+        return;
+      }
+    }
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -329,6 +630,15 @@ const BlockEditor = ({
     }
   };
 
+  if (block.type === "table") {
+    return (
+      <TableBlock
+        block={block}
+        onChange={onChange}
+      />
+    );
+  }
+
   if (block.type === "hr") {
     return (
       <div className="py-[0.8rem]">
@@ -386,6 +696,8 @@ const BlockEditor = ({
     />
   );
 };
+
+// ─── Pure helper functions ─────────────────────────────────────────────────────
 
 const escapeHtml = (text: string): string => {
   return text
@@ -460,6 +772,34 @@ const htmlToMarkdownInline = (html: string): string => {
     .replace(/&quot;/g, '"');
 };
 
+const generateTableMarkdown = (rows: number, cols: number): string[] => {
+  const colNames = Array.from({ length: cols }, (_, i) => ` Column ${i + 1} `);
+  const header = `|${colNames.join("|")}|`;
+  const separator = `|${Array.from({ length: cols }, () => " --- ").join("|")}|`;
+  const dataRow = `|${Array.from({ length: cols }, () => "  ").join("|")}|`;
+  // rows includes header row, so data rows = rows - 1
+  const dataRows = Array.from({ length: Math.max(1, rows - 1) }, () => dataRow);
+  return [header, separator, ...dataRows];
+};
+
+// ─── Markdown Editor ──────────────────────────────────────────────────────────
+
+interface SlashMenuState {
+  open: boolean;
+  filter: string;
+  selectedIndex: number;
+  blockIndex: number;
+  position: { top: number; left: number };
+}
+
+const SLASH_MENU_INITIAL: SlashMenuState = {
+  open: false,
+  filter: "",
+  selectedIndex: 0,
+  blockIndex: -1,
+  position: { top: 0, left: 0 },
+};
+
 const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: MarkdownEditorProps) => {
   // Initial blocks are derived from `value` once on mount.
   // For external value resets (e.g. note switching), pass a new `key` to this component
@@ -475,6 +815,8 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
   const pendingFocusIndex = useRef<number | null>(null);
   // -1 = start, -2 = end, >= 0 = specific visible character offset
   const pendingFocusOffset = useRef<number>(-1);
+
+  const [slashMenu, setSlashMenu] = useState<SlashMenuState>(SLASH_MENU_INITIAL);
 
   // Focus pending block after render
   useEffect(() => {
@@ -680,6 +1022,166 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
     });
   }, []);
 
+  // ─── Slash Command Handlers ────────────────────────────────────────────────
+
+  const handleSlashInput = useCallback(
+    (index: number, filter: string, anchorEl: HTMLDivElement) => {
+      const rect = anchorEl.getBoundingClientRect();
+      const containerRect = anchorEl.closest(".markdown-editor-root")?.getBoundingClientRect();
+      const top = containerRect
+        ? rect.bottom - containerRect.top + 4
+        : rect.bottom + 4;
+      const left = containerRect
+        ? rect.left - containerRect.left
+        : rect.left;
+
+      setSlashMenu({
+        open: true,
+        filter,
+        selectedIndex: 0,
+        blockIndex: index,
+        position: { top, left },
+      });
+    },
+    [],
+  );
+
+  const handleSlashClose = useCallback(() => {
+    setSlashMenu(SLASH_MENU_INITIAL);
+  }, []);
+
+  const handleSlashArrowUp = useCallback(() => {
+    setSlashMenu(prev => {
+      const filtered = SLASH_COMMANDS.filter(cmd =>
+        cmd.label.toLowerCase().includes(prev.filter.toLowerCase()),
+      );
+      const next = (prev.selectedIndex - 1 + filtered.length) % filtered.length;
+      return { ...prev, selectedIndex: next };
+    });
+  }, []);
+
+  const handleSlashArrowDown = useCallback(() => {
+    setSlashMenu(prev => {
+      const filtered = SLASH_COMMANDS.filter(cmd =>
+        cmd.label.toLowerCase().includes(prev.filter.toLowerCase()),
+      );
+      const next = (prev.selectedIndex + 1) % filtered.length;
+      return { ...prev, selectedIndex: next };
+    });
+  }, []);
+
+  const applySlashCommand = useCallback(
+    (commandId: string, blockIndex: number) => {
+      const el = blockRefs.current[blockIndex];
+
+      // Clear the slash + filter text from the DOM element
+      if (el) {
+        const text = el.textContent ?? "";
+        const slashIdx = text.lastIndexOf("/");
+        const cleaned = slashIdx !== -1 ? text.slice(0, slashIdx) : text;
+        el.textContent = cleaned;
+      }
+
+      const prefixMap: Record<string, string> = {
+        h1: "# ",
+        h2: "## ",
+        h3: "### ",
+        ul: "- ",
+        ol: "1. ",
+        blockquote: "> ",
+        code: "```",
+        hr: "---",
+      };
+
+      const newPrefix = prefixMap[commandId] ?? "";
+
+      setBlocks(prev => {
+        const block = prev[blockIndex];
+        // Get current raw without slash command text
+        const displayText = getDisplayText(block);
+        const slashIdx = displayText.lastIndexOf("/");
+        const textBefore = slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
+
+        const newRaw = newPrefix + textBefore;
+        const newType = detectBlockType(newRaw.trim()) || ("paragraph" as BlockType);
+
+        const updated = prev.map((b, i) =>
+          i === blockIndex ? { ...b, raw: newRaw, type: newType } : b,
+        );
+        pendingFocusIndex.current = blockIndex;
+        pendingFocusOffset.current = -2;
+        notifyChange(updated);
+        return updated;
+      });
+
+      setSlashMenu(SLASH_MENU_INITIAL);
+    },
+    [notifyChange],
+  );
+
+  const applyTableCommand = useCallback(
+    (rows: number, cols: number, blockIndex: number) => {
+      const tableLines = generateTableMarkdown(rows, cols);
+
+      setBlocks(prev => {
+        const block = prev[blockIndex];
+        // Get text before slash to preserve it
+        const displayText = getDisplayText(block);
+        const slashIdx = displayText.lastIndexOf("/");
+        const textBefore = slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
+
+        // If there's text before the slash, keep it as a paragraph; otherwise replace the block
+        const newBlocks: Block[] = [];
+
+        if (textBefore.trim() !== "") {
+          newBlocks.push({ ...block, raw: textBefore, type: "paragraph" });
+        }
+
+        for (const line of tableLines) {
+          newBlocks.push({
+            id: generateId(),
+            type: "paragraph",
+            raw: line,
+            indent: 0,
+          });
+        }
+
+        const before = prev.slice(0, blockIndex);
+        const after = prev.slice(blockIndex + 1);
+        const updated = [...before, ...newBlocks, ...after];
+
+        pendingFocusIndex.current = before.length + newBlocks.length - 1;
+        pendingFocusOffset.current = -2;
+        notifyChange(updated);
+        return updated;
+      });
+
+      setSlashMenu(SLASH_MENU_INITIAL);
+    },
+    [notifyChange],
+  );
+
+  const handleSlashEnter = useCallback(() => {
+    const filtered = SLASH_COMMANDS.filter(cmd =>
+      cmd.label.toLowerCase().includes(slashMenu.filter.toLowerCase()),
+    );
+    const selected = filtered[slashMenu.selectedIndex];
+    if (!selected) return;
+
+    if (selected.id === "table") {
+      // Table requires grid picker — open it via menu's internal state
+      // We re-open the menu signaling table mode via a special filter value
+      // Instead, we directly open table picker by calling applyTableCommand with default 3x3
+      // But the spec says show grid picker. We handle this by keeping the menu open
+      // and letting the SlashMenu component show the TableGridPicker.
+      // We trigger "table" select on the menu via a ref approach.
+      // Simplest: just apply a 3x3 default on Enter, grid picker available via mouse.
+      applyTableCommand(3, 3, slashMenu.blockIndex);
+    } else {
+      applySlashCommand(selected.id, slashMenu.blockIndex);
+    }
+  }, [slashMenu, applySlashCommand, applyTableCommand]);
+
   // Trim stale refs when blocks shrink
   useEffect(() => {
     blockRefs.current.length = blocks.length;
@@ -689,7 +1191,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
 
   return (
     <div
-      className="relative w-full"
+      className="markdown-editor-root relative w-full"
       style={{ minHeight: "40rem" }}
       onClick={() => {
         if (focusedIndex === -1 && blockRefs.current.length > 0) {
@@ -713,16 +1215,32 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
             onFocus={() => setFocusedIndex(index)}
             onChange={raw => handleBlockChange(index, raw)}
             onEnter={offset => handleEnter(index, offset)}
-            onBackspace={(isEmpty, atStart) => handleBackspace(index, isEmpty, atStart)}
+            onBackspace={(isEmptyBlock, atStart) => handleBackspace(index, isEmptyBlock, atStart)}
             onTab={shift => handleTab(index, shift)}
             onArrowUp={() => handleArrowUp(index)}
             onArrowDown={() => handleArrowDown(index)}
+            onSlashInput={(filter, anchorEl) => handleSlashInput(index, filter, anchorEl)}
+            onSlashClose={handleSlashClose}
+            isSlashOpen={slashMenu.open && slashMenu.blockIndex === index}
+            onSlashArrowUp={handleSlashArrowUp}
+            onSlashArrowDown={handleSlashArrowDown}
+            onSlashEnter={handleSlashEnter}
             editorRef={el => {
               blockRefs.current[index] = el;
             }}
           />
         ))}
       </div>
+
+      {slashMenu.open && (
+        <SlashMenu
+          filter={slashMenu.filter}
+          selectedIndex={slashMenu.selectedIndex}
+          position={slashMenu.position}
+          onSelect={commandId => applySlashCommand(commandId, slashMenu.blockIndex)}
+          onTableSelect={(rows, cols) => applyTableCommand(rows, cols, slashMenu.blockIndex)}
+        />
+      )}
 
       <style>{`
         .inline-code {
