@@ -107,7 +107,7 @@ const EditorPage = () => {
   };
 
   const relatedNotes: RelatedNote[] = relatedNotesData?.items ?? [];
-  const actions: ActionItemResponse[] = noteActions ?? [];
+  const actions: ActionItemResponse[] = noteActions?.length ? noteActions : (noteDetail?.action_items ?? []);
 
   if (isLoading) {
     return (
