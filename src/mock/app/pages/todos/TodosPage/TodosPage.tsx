@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 
 import {
   CloseIcon,
@@ -15,7 +15,10 @@ import {
 import { GlobalLayout } from "@/mock/app/components/layout";
 import { useExecuteActionMutation, useUpdateActionMutation } from "@/mock/lib/apis/mutations/actions";
 import type { ActionItemResponse } from "@/mock/lib/apis/mutations/actions/useUpdateActionMutation/useUpdateActionMutation.type";
-import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
+import { api } from "@lib/apis/axios";
+
+import type { NoteActionsResponse } from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery.type";
+import notesKeys from "@/mock/lib/apis/queries/notes/keys";
 import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
 import useResearchStream from "@/mock/lib/hooks/useResearchStream/useResearchStream";
 
@@ -242,19 +245,27 @@ const TodosPage = () => {
 
   const { data: notesData, isLoading: isNotesLoading } = useNotesQuery({ limit: 50 });
 
-  const notesWithActions = notesData?.items.filter(n => n.has_action_items) ?? [];
-  const firstNoteWithActions = notesWithActions[0];
-
-  const { data: actionsData, isLoading: isActionsLoading } = useNoteActionsQuery(
-    firstNoteWithActions?.note_number ?? 0,
+  const notesWithActions = useMemo(
+    () => notesData?.items.filter(n => n.has_action_items) ?? [],
+    [notesData?.items],
   );
 
-  const isLoading = isNotesLoading || (firstNoteWithActions !== undefined && isActionsLoading);
+  const actionsQueries = useQueries({
+    queries: notesWithActions.map(note => ({
+      queryKey: notesKeys.actions(note.note_number),
+      queryFn: async () => {
+        const response = await api.get<NoteActionsResponse>(`/api/v1/notes/${note.note_number}/actions`);
+        return { actions: response.data, noteNumber: note.note_number };
+      },
+    })),
+  });
 
-  const allActions: ActionWithNote[] = (actionsData ?? []).map(action => ({
-    action,
-    noteNumber: firstNoteWithActions?.note_number ?? 0,
-  }));
+  const isActionsLoading = actionsQueries.some(q => q.isLoading);
+  const isLoading = isNotesLoading || (notesWithActions.length > 0 && isActionsLoading);
+
+  const allActions: ActionWithNote[] = actionsQueries.flatMap(
+    q => (q.data?.actions ?? []).map(action => ({ action, noteNumber: q.data?.noteNumber ?? 0 })),
+  );
 
   const filteredActions = allActions.filter(({ action }) => {
     switch (filter) {

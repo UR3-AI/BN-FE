@@ -29,6 +29,7 @@ const ChatPage = () => {
   const [streamingSources, setStreamingSources] = useState<ChatSourceNote[]>([]);
   const [streamError, setStreamError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const { data: sessionsData, isLoading: isSessionsLoading } = useChatSessionsQuery();
   const { data: sessionDetail } = useChatSessionDetailQuery(selectedSessionId);
@@ -45,6 +46,12 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages.length, streamingText, scrollToBottom]);
 
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const handleSendMessage = async () => {
     const trimmed = message.trim();
     if (!trimmed || isStreaming) return;
@@ -55,10 +62,14 @@ const ChatPage = () => {
     setStreamingSources([]);
     setStreamError("");
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       // Ensure fresh token before SSE (bypasses Axios interceptor)
       let token = accessToken;
-      const { expiresAt, refreshToken, clearTokens } = useAuthStore.getState();
+      const { expiresAt, refreshToken } = useAuthStore.getState();
       if (expiresAt && Date.now() > expiresAt - 60_000 && refreshToken) {
         try {
           const { default: refreshTokenAsync } = await import(
@@ -68,8 +79,8 @@ const ChatPage = () => {
           useAuthStore.getState().setTokens(refreshed.access_token, refreshed.refresh_token, refreshed.expires_in);
           token = refreshed.access_token;
         } catch {
-          clearTokens();
-          return;
+          // Token refresh failed — proceed with current token
+          // Axios interceptor will handle 401 on subsequent requests
         }
       }
 
@@ -83,6 +94,7 @@ const ChatPage = () => {
           message: trimmed,
           session_id: selectedSessionId || undefined,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -120,6 +132,8 @@ const ChatPage = () => {
                   break;
                 case "completed":
                   await queryClient.invalidateQueries({ queryKey: ["chat"] });
+                  setStreamingText("");
+                  setStreamingSources([]);
                   break;
                 case "failed":
                   setStreamError(data.error ?? "An error occurred");
@@ -133,11 +147,10 @@ const ChatPage = () => {
         }
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
       setStreamError(err instanceof Error ? err.message : "Connection failed");
     } finally {
       setIsStreaming(false);
-      setStreamingText("");
-      setStreamingSources([]);
     }
   };
 

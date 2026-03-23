@@ -10,12 +10,13 @@ const mockSpaFallback = (): Plugin => ({
   configureServer(server: ViteDevServer) {
     server.middlewares.use(((req: Connect.IncomingMessage, _res, next) => {
       const url = req.url ?? "";
+      const pathname = url.split("?")[0];
       const isAsset =
-        url.startsWith("/@") ||
-        url.startsWith("/api") ||
-        url.startsWith("/src") ||
-        url.startsWith("/node_modules") ||
-        url.includes(".");
+        pathname.startsWith("/@") ||
+        pathname.startsWith("/api") ||
+        pathname.startsWith("/src") ||
+        pathname.startsWith("/node_modules") ||
+        pathname.includes(".");
 
       if (!isAsset) {
         req.url = "/mock.html";

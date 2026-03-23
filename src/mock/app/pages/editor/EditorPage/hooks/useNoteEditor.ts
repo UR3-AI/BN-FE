@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { api } from "@lib/apis/axios";
+
 import useUpdateNoteMutation from "@/mock/lib/apis/mutations/notes/useUpdateNoteMutation/useUpdateNoteMutation";
 
 import type { NoteDetailResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
@@ -97,10 +99,13 @@ const useNoteEditor = ({
         clearTimeout(timerRef.current);
       }
       if (pendingRef.current !== null && noteNumberRef.current > 0) {
-        save(pendingRef.current, noteNumberRef.current);
+        const { title: t, content: c } = pendingRef.current;
+        const n = noteNumberRef.current;
+        if (c) {
+          api.patch(`/api/v1/notes/${n}`, { title: t || undefined, content: c }).catch(() => {});
+        }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { title, content, saveStatus, onTitleChange, onContentChange, flush };
