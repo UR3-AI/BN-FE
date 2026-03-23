@@ -626,26 +626,28 @@ const BlockEditor = ({
       return;
     }
 
-    if (e.key === "Backspace") {
+    if (e.key === "Backspace" || e.key === "Delete") {
       const el = divRef.current;
       if (!el) return;
+      const sel = window.getSelection();
+      // If text is selected (not collapsed), let browser handle deletion
+      if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+        return;
+      }
       const text = el.textContent ?? "";
       const isEmpty = text.length === 0;
       let atStart = isEmpty;
-      if (!isEmpty) {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) {
-          const range = sel.getRangeAt(0);
-          const preRange = range.cloneRange();
-          preRange.selectNodeContents(el);
-          preRange.setEnd(range.startContainer, range.startOffset);
-          atStart = preRange.toString().length === 0;
-        }
+      if (!isEmpty && sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const preRange = range.cloneRange();
+        preRange.selectNodeContents(el);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        atStart = preRange.toString().length === 0;
       }
-      if (atStart) {
+      if (atStart && e.key === "Backspace") {
         e.preventDefault();
+        onBackspace(isEmpty, atStart);
       }
-      onBackspace(isEmpty, atStart);
       return;
     }
 
