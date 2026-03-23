@@ -70,8 +70,7 @@ const EditorPage = () => {
 
   const { data: attachmentsData } = useAttachmentsQuery(selectedNoteNumber);
 
-  const isLoading =
-    isNotesLoading || (hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading));
+  const isDetailAreaLoading = hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading);
 
   const handleCreateNote = () => {
     createNoteMutation.mutate(
@@ -109,7 +108,7 @@ const EditorPage = () => {
   const relatedNotes: RelatedNote[] = relatedNotesData?.items ?? [];
   const actions: ActionItemResponse[] = noteActions?.length ? noteActions : (noteDetail?.action_items ?? []);
 
-  if (isLoading) {
+  if (isNotesLoading) {
     return (
       <GlobalLayout
         breadcrumb={[{ label: "Projects" }, { label: "Loading...", active: true }]}
@@ -142,7 +141,7 @@ const EditorPage = () => {
     );
   }
 
-  if (!hasNote || !noteDetail) {
+  if (!hasNote || (!noteDetail && !isDetailAreaLoading)) {
     return (
       <GlobalLayout
         breadcrumb={[{ label: "Projects" }, { label: "No notes", active: true }]}
@@ -178,6 +177,39 @@ const EditorPage = () => {
               className="rounded-[0.375rem] bg-primary px-[2.4rem] py-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
               {createNoteMutation.isPending ? "Creating..." : "Create Note"}
             </button>
+          </div>
+        </div>
+      </GlobalLayout>
+    );
+  }
+
+  if (isDetailAreaLoading || !noteDetail) {
+    return (
+      <GlobalLayout
+        breadcrumb={[{ label: "Projects" }, { label: "Loading...", active: true }]}
+        sidePanel={
+          <AISidePanel
+            summary={null}
+            content={null}
+            tags={[]}
+            actions={[]}
+            relatedNotes={[]}
+            noteTitle={null}
+            isProcessing={false}
+          />
+        }>
+        <div className="flex flex-1">
+          <NoteListPanel
+            notes={notes}
+            selectedNoteNumber={selectedNoteNumber}
+            onSelectNote={handleSelectNote}
+            onCreateNote={handleCreateNote}
+            onPinToggle={handlePinToggle}
+            onDelete={handleDeleteNote}
+            isCreating={createNoteMutation.isPending}
+          />
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-[1.4rem] text-on-surface-variant">Loading...</p>
           </div>
         </div>
       </GlobalLayout>
