@@ -92,9 +92,10 @@ const blocksToMarkdown = (blocks: Block[]): string => {
 };
 
 const sanitizeUrl = (url: string): string => {
-  const trimmed = url.trim().toLowerCase();
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
-    return url;
+  const trimmed = url.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("/")) {
+    return trimmed;
   }
   return "";
 };
@@ -110,10 +111,12 @@ const applyInlineFormatting = (text: string): string => {
       .replace(/\*([^*]+)\*/g, "<em>$1</em>")
       // strikethrough
       .replace(/~~([^~]+)~~/g, "<del>$1</del>")
-      // link (with URL sanitization)
+      // link (with URL sanitization + attribute escaping)
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
         const safe = sanitizeUrl(url);
-        return safe ? `<a href="${safe}" class="inline-link">${label}</a>` : label;
+        if (!safe) return label;
+        const escaped = safe.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<a href="${escaped}" class="inline-link">${label}</a>`;
       })
   );
 };
@@ -1121,6 +1124,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
       const filtered = SLASH_COMMANDS.filter(cmd =>
         cmd.label.toLowerCase().includes(prev.filter.toLowerCase()),
       );
+      if (filtered.length === 0) return prev;
       const next = (prev.selectedIndex - 1 + filtered.length) % filtered.length;
       return { ...prev, selectedIndex: next };
     });
@@ -1131,6 +1135,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
       const filtered = SLASH_COMMANDS.filter(cmd =>
         cmd.label.toLowerCase().includes(prev.filter.toLowerCase()),
       );
+      if (filtered.length === 0) return prev;
       const next = (prev.selectedIndex + 1) % filtered.length;
       return { ...prev, selectedIndex: next };
     });
@@ -1203,14 +1208,12 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
           newBlocks.push({ ...block, raw: textBefore, type: "paragraph" });
         }
 
-        for (const line of tableLines) {
-          newBlocks.push({
-            id: generateId(),
-            type: "paragraph",
-            raw: line,
-            indent: 0,
-          });
-        }
+        newBlocks.push({
+          id: generateId(),
+          type: "table",
+          raw: tableLines.join("\n"),
+          indent: 0,
+        });
 
         const before = prev.slice(0, blockIndex);
         const after = prev.slice(blockIndex + 1);
