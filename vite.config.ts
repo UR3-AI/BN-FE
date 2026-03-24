@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
       server: {
         proxy: {
           "/api": {
-            target: "https://bn-be-production.up.railway.app",
+            target: "http://4.230.10.204",
             changeOrigin: true,
           },
         },

@@ -1,7 +1,7 @@
 import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
 import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { CloseIcon, DeleteIcon, LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
@@ -42,7 +42,11 @@ const EditorPage = () => {
   const attachmentDownload = useAttachmentDownload();
   const { subscribe: subscribeNoteStream } = useNoteStream();
   const [tagInput, setTagInput] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [noteListWidth, setNoteListWidth] = useState(280);
+  const noteListDragRef = useRef<{ startX: number; startW: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCountRef = useRef(0);
 
   const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
     useEditorNote();
@@ -92,20 +96,142 @@ const EditorPage = () => {
     );
   };
 
-  const handleDeleteNote = (noteNumber: number) => {
-    if (!window.confirm("Are you sure you want to delete this note?")) return;
-    const wasSelected = selectedNoteNumber === noteNumber;
-    deleteNoteMutation.mutate(noteNumber, {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: ["notes"] });
-        if (wasSelected) {
-          setSelectedNoteNumber(0);
-        }
-      },
+  const [toasts, setToasts] = useState<{ id: number; message: string; undoAction: () => void; displayTimerId: ReturnType<typeof setTimeout> }[]>([]);
+  const deleteTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  const dismissToast = (id: number) => {
+    setToasts(prev => {
+      const t = prev.find(x => x.id === id);
+      if (t) clearTimeout(t.displayTimerId);
+      return prev.filter(x => x.id !== id);
     });
   };
 
+  const handleDeleteNote = (noteNumber: number) => {
+    const wasSelected = selectedNoteNumber === noteNumber;
+    const deletedNote = notes.find(n => n.note_number === noteNumber);
+
+    // Optimistic: 즉시 UI에서 제거
+    queryClient.setQueriesData<{ items: typeof notes; total: number; skip: number; limit: number; has_next: boolean }>(
+      { queryKey: ["notes", "list"] },
+      old => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.filter(n => n.note_number !== noteNumber),
+          total: old.total - 1,
+        };
+      },
+    );
+    if (wasSelected) {
+      setSelectedNoteNumber(0);
+    }
+
+    // 지연 삭제 타이머 (5초 후 실제 삭제)
+    const deleteTimer = setTimeout(() => {
+      deleteTimersRef.current.delete(noteNumber);
+      deleteNoteMutation.mutate(noteNumber, {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        onError: () => {
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+          if (wasSelected) setSelectedNoteNumber(noteNumber);
+        },
+      });
+    }, 5000);
+    deleteTimersRef.current.set(noteNumber, deleteTimer);
+
+    // 토스트 표시 — 삭제 실행(5초) 후 0.5초 여유를 두고 제거
+    const displayTimerId = setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== noteNumber));
+    }, 5500);
+
+    setToasts(prev => [
+      ...prev,
+      {
+        id: noteNumber,
+        message: `"${deletedNote?.title ?? "Untitled"}" deleted`,
+        undoAction: () => {
+          // Undo: 삭제 타이머 취소 + UI 복원
+          const dt = deleteTimersRef.current.get(noteNumber);
+          if (dt) { clearTimeout(dt); deleteTimersRef.current.delete(noteNumber); }
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+          if (wasSelected) setSelectedNoteNumber(noteNumber);
+          dismissToast(noteNumber);
+        },
+        displayTimerId,
+      },
+    ]);
+  };
+
+  const onNoteListResizeDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      noteListDragRef.current = { startX: e.clientX, startW: noteListWidth };
+    },
+    [noteListWidth],
+  );
+
+  const onNoteListResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!noteListDragRef.current) return;
+    const delta = e.clientX - noteListDragRef.current.startX;
+    setNoteListWidth(Math.min(480, Math.max(200, noteListDragRef.current.startW + delta)));
+  }, []);
+
+  const onNoteListResizeUp = useCallback(() => {
+    noteListDragRef.current = null;
+  }, []);
+
+  const handleFileUpload = useCallback(
+    (file: File) => {
+      if (selectedNoteNumber <= 0) return;
+      uploadAttachmentMutation.mutate(
+        { noteNumber: selectedNoteNumber, file },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          },
+        },
+      );
+    },
+    [selectedNoteNumber, uploadAttachmentMutation, queryClient],
+  );
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCountRef.current++;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCountRef.current--;
+    if (dragCountRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dragCountRef.current = 0;
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFileUpload(file);
+    },
+    [handleFileUpload],
+  );
+
   const relatedNotes: RelatedNote[] = relatedNotesData?.items ?? [];
+  const notesForLink = useMemo(
+    () => notes.map(n => ({ note_number: n.note_number, title: n.title })),
+    [notes],
+  );
   const actions: ActionItemResponse[] = noteActions?.length ? noteActions : (noteDetail?.action_items ?? []);
 
   if (isNotesLoading) {
@@ -132,6 +258,10 @@ const EditorPage = () => {
             onPinToggle={handlePinToggle}
             onDelete={handleDeleteNote}
             isCreating={createNoteMutation.isPending}
+            width={noteListWidth}
+            onResizePointerDown={onNoteListResizeDown}
+            onResizePointerMove={onNoteListResizeMove}
+            onResizePointerUp={onNoteListResizeUp}
           />
           <div className="flex flex-1 items-center justify-center">
             <p className="text-[1.4rem] text-on-surface-variant">Loading...</p>
@@ -165,6 +295,10 @@ const EditorPage = () => {
             onPinToggle={handlePinToggle}
             onDelete={handleDeleteNote}
             isCreating={createNoteMutation.isPending}
+            width={noteListWidth}
+            onResizePointerDown={onNoteListResizeDown}
+            onResizePointerMove={onNoteListResizeMove}
+            onResizePointerUp={onNoteListResizeUp}
           />
           <div className="flex flex-1 flex-col items-center justify-center gap-[2.4rem]">
             <p className="text-[1.6rem] text-on-surface-variant">
@@ -207,6 +341,10 @@ const EditorPage = () => {
             onPinToggle={handlePinToggle}
             onDelete={handleDeleteNote}
             isCreating={createNoteMutation.isPending}
+            width={noteListWidth}
+            onResizePointerDown={onNoteListResizeDown}
+            onResizePointerMove={onNoteListResizeMove}
+            onResizePointerUp={onNoteListResizeUp}
           />
           <div className="flex flex-1 items-center justify-center">
             <p className="text-[1.4rem] text-on-surface-variant">Loading...</p>
@@ -286,11 +424,11 @@ const EditorPage = () => {
         />
 
         {/* Distraction-free Writing Area */}
-        <div className="mx-auto max-w-[89.6rem] flex-1 px-[3.2rem] pt-[6.4rem] pb-[12.8rem] md:px-[6.4rem]">
+        <div className="mx-auto min-w-0 max-w-[89.6rem] flex-1 px-[3.2rem] pt-[6.4rem] pb-[12.8rem] md:px-[6.4rem]">
           {/* Draft Badge */}
           <div className="mb-[4.8rem]">
-            <div className="mb-[1.6rem] flex items-center gap-[1.6rem]">
-              <span className={`rounded-[0.125rem] px-[0.8rem] py-[0.2rem] text-[1rem] font-semibold uppercase tracking-[0.3em] ${
+            <div className="mb-[1.6rem] flex flex-wrap items-center gap-[0.8rem]">
+              <span className={`shrink-0 rounded-[0.125rem] px-[0.8rem] py-[0.2rem] text-[1rem] font-semibold uppercase tracking-[0.3em] ${
                 isFailed
                   ? "bg-error/10 text-error"
                   : "bg-secondary-container/30 text-secondary"
@@ -361,12 +499,16 @@ const EditorPage = () => {
                 Export PDF
               </button>
             </div>
-            <input
-              type="text"
+            <textarea
               value={title}
               onChange={e => onTitleChange(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
               placeholder="Untitled"
-              className="mb-[3.2rem] w-full bg-transparent font-headline text-[5rem] font-extrabold leading-tight tracking-tighter text-on-surface outline-none placeholder:text-on-surface-variant/30"
+              rows={1}
+              className="mb-[3.2rem] w-full resize-none overflow-hidden bg-transparent font-headline text-[5rem] font-extrabold leading-tight tracking-tighter text-on-surface outline-none placeholder:text-on-surface-variant/30"
+              style={{ fieldSizing: "content" } as React.CSSProperties}
             />
           </div>
 
@@ -375,40 +517,50 @@ const EditorPage = () => {
             key={selectedNoteNumber}
             value={content}
             onChange={onContentChange}
+            onNoteClick={handleSelectNote}
+            notes={notesForLink}
             placeholder="Start writing..."
           />
 
           {/* Attachments */}
-          <section className="mt-[6.4rem] border-t border-outline-variant/10 pt-[3.2rem]">
+          <section
+            className="mt-[6.4rem] border-t border-outline-variant/10 pt-[3.2rem]"
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}>
             <h3 className="mb-[2rem] font-headline text-[1.6rem] font-bold text-on-surface">
               Attachments
             </h3>
-            <div className="mb-[1.6rem] flex items-center gap-[1.2rem]">
+
+            {/* Drop Zone */}
+            <div
+              onClick={() => !uploadAttachmentMutation.isPending && fileInputRef.current?.click()}
+              className={`mb-[1.6rem] flex cursor-pointer flex-col items-center justify-center rounded-[0.5rem] border-2 border-dashed py-[2.4rem] transition-colors ${
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-outline-variant/20 hover:border-outline-variant/40 hover:bg-surface-container-low/50"
+              }`}>
               <input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
                 onChange={e => {
                   const file = e.target.files?.[0];
-                  if (!file) return;
-                  uploadAttachmentMutation.mutate(
-                    { noteNumber: selectedNoteNumber, file },
-                    {
-                      onSuccess: () => {
-                        queryClient.invalidateQueries({ queryKey: ["notes"] });
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      },
-                    },
-                  );
+                  if (file) handleFileUpload(file);
                 }}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadAttachmentMutation.isPending}
-                className="rounded-[0.25rem] border border-outline-variant/20 px-[1.2rem] py-[0.4rem] text-[1.1rem] font-medium text-secondary transition-colors hover:bg-surface-container disabled:opacity-50">
-                {uploadAttachmentMutation.isPending ? "Uploading..." : "Upload File"}
-              </button>
+              {uploadAttachmentMutation.isPending ? (
+                <p className="text-[1.2rem] font-medium text-primary">Uploading...</p>
+              ) : isDragging ? (
+                <p className="text-[1.2rem] font-medium text-primary">Drop file here</p>
+              ) : (
+                <>
+                  <p className="text-[1.2rem] font-medium text-on-surface-variant">
+                    Drop file here or click to upload
+                  </p>
+                </>
+              )}
             </div>
             {(attachmentsData?.items ?? []).length > 0 && (
               <div className="space-y-[0.8rem]">
@@ -488,6 +640,31 @@ const EditorPage = () => {
           )}
         </div>
       </div>
+
+      {/* Toasts */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-[3.2rem] left-1/2 z-50 flex -translate-x-1/2 flex-col gap-[0.8rem]">
+          {toasts.map(t => (
+            <div
+              key={t.id}
+              className="flex items-center gap-[1.6rem] rounded-[0.5rem] bg-surface-container-highest px-[2rem] py-[1.2rem] shadow-2xl">
+              <span className="text-[1.3rem] text-on-surface">{t.message}</span>
+              <button
+                type="button"
+                onClick={t.undoAction}
+                className="text-[1.3rem] font-bold text-primary transition-colors hover:text-primary/80">
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissToast(t.id)}
+                className="text-[1.3rem] text-on-surface-variant/50 transition-colors hover:text-on-surface-variant">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </GlobalLayout>
   );
 };

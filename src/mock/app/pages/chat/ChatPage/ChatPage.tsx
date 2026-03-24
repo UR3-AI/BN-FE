@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import { DeleteIcon, SparklesIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import type { ChatSourceNote } from "@/mock/lib/apis/mutations/chat/useChatMutation/useChatMutation.type";
@@ -21,15 +23,20 @@ const formatTimeAgo = (dateString: string) => {
 
 const ChatPage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const accessToken = useAuthStore(s => s.accessToken);
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [message, setMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingText, setStreamingText] = useState("");
+  const [displayText, setDisplayText] = useState("");
   const [streamingSources, setStreamingSources] = useState<ChatSourceNote[]>([]);
   const [streamError, setStreamError] = useState("");
+  const [pendingUserMessage, setPendingUserMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const tokenQueueRef = useRef<string[]>([]);
+  const rafRef = useRef<number>(0);
+  const lastFrameRef = useRef(0);
 
   const { data: sessionsData, isLoading: isSessionsLoading } = useChatSessionsQuery();
   const { data: sessionDetail } = useChatSessionDetailQuery(selectedSessionId);
@@ -42,9 +49,50 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  // 토큰 큐를 프레임 단위로 소비하여 타이핑 효과
+  const lastScrollRef = useRef(0);
+  const flushQueue = useCallback((timestamp: number) => {
+    const queue = tokenQueueRef.current;
+    if (queue.length === 0) {
+      rafRef.current = 0;
+      // 큐 끝나면 마지막 스크롤
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    // 약 20ms 간격으로 한 토큰씩 (50 chars/sec 체감)
+    if (timestamp - lastFrameRef.current >= 20) {
+      const chunk = queue.splice(0, 1).join("");
+      setDisplayText(prev => prev + chunk);
+      lastFrameRef.current = timestamp;
+      // 500ms 간격으로 throttle된 스크롤
+      if (timestamp - lastScrollRef.current >= 500) {
+        lastScrollRef.current = timestamp;
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+    rafRef.current = requestAnimationFrame(flushQueue);
+  }, []);
+
+  const enqueueTokens = useCallback(
+    (text: string) => {
+      tokenQueueRef.current.push(...text.split(""));
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(flushQueue);
+      }
+    },
+    [flushQueue],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  // 메시지 추가 시에만 스크롤 (스트리밍 중에는 flushQueue에서 throttle 처리)
   useEffect(() => {
     scrollToBottom();
-  }, [messages.length, streamingText, scrollToBottom]);
+  }, [messages.length, scrollToBottom]);
 
   useEffect(() => {
     return () => {
@@ -57,8 +105,10 @@ const ChatPage = () => {
     if (!trimmed || isStreaming) return;
 
     setMessage("");
+    setPendingUserMessage(trimmed);
     setIsStreaming(true);
-    setStreamingText("");
+    setDisplayText("");
+    tokenQueueRef.current = [];
     setStreamingSources([]);
     setStreamError("");
 
@@ -128,12 +178,20 @@ const ChatPage = () => {
                   setStreamingSources(data.notes ?? []);
                   break;
                 case "token":
-                  setStreamingText(prev => prev + data.text);
+                  enqueueTokens(data.text);
                   break;
                 case "completed":
-                  await queryClient.invalidateQueries({ queryKey: ["chat"] });
-                  setStreamingText("");
-                  setStreamingSources([]);
+                  setPendingUserMessage("");
+                  // 큐에 남은 토큰을 즉시 flush한 뒤, 서버 데이터로 교체 (깜빡임 방지)
+                  setDisplayText(prev => prev + tokenQueueRef.current.splice(0).join(""));
+                  if (rafRef.current) {
+                    cancelAnimationFrame(rafRef.current);
+                    rafRef.current = 0;
+                  }
+                  queryClient.refetchQueries({ queryKey: ["chat"] }).then(() => {
+                    setDisplayText("");
+                    setStreamingSources([]);
+                  });
                   break;
                 case "failed":
                   setStreamError(data.error ?? "An error occurred");
@@ -151,6 +209,12 @@ const ChatPage = () => {
       setStreamError(err instanceof Error ? err.message : "Connection failed");
     } finally {
       setIsStreaming(false);
+      setPendingUserMessage("");
+      tokenQueueRef.current = [];
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
     }
   };
 
@@ -173,7 +237,7 @@ const ChatPage = () => {
     }
   };
 
-  const showStreamingBubble = isStreaming || streamingText;
+  const showStreamingBubble = isStreaming || displayText || pendingUserMessage;
 
   return (
     <GlobalLayout breadcrumb={[{ label: "Chat", active: true }]}>
@@ -277,11 +341,13 @@ const ChatPage = () => {
                       {msg.role === "assistant" && msg.sources.length > 0 && (
                         <div className="mt-[0.8rem] flex flex-wrap gap-[0.6rem] border-t border-outline-variant/10 pt-[0.8rem]">
                           {msg.sources.map(src => (
-                            <span
+                            <button
+                              type="button"
                               key={src.note_number}
-                              className="rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary">
-                              Note #{src.note_number}
-                            </span>
+                              onClick={() => navigate("/", { state: { noteNumber: src.note_number } })}
+                              className="cursor-pointer rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary transition-colors hover:bg-primary/20 hover:text-primary">
+                              Note #{src.note_number}{src.title ? ` — ${src.title}` : ""}
+                            </button>
                           ))}
                         </div>
                       )}
@@ -295,13 +361,27 @@ const ChatPage = () => {
                   </div>
                 ))}
 
+                {/* Optimistic user message */}
+                {pendingUserMessage && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] rounded-[0.75rem] bg-primary px-[1.6rem] py-[1.2rem] text-on-primary">
+                      <p className="whitespace-pre-wrap text-[1.4rem] leading-relaxed">
+                        {pendingUserMessage}
+                      </p>
+                      <span className="mt-[0.4rem] block text-[1rem] text-on-primary/60">
+                        just now
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Streaming assistant response */}
                 {showStreamingBubble && (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-[0.75rem] bg-surface-container px-[1.6rem] py-[1.2rem] text-on-surface">
-                      {streamingText ? (
+                      {displayText ? (
                         <p className="whitespace-pre-wrap text-[1.4rem] leading-relaxed">
-                          {streamingText}
+                          {displayText}
                           <span className="inline-block h-[1.4rem] w-[0.2rem] animate-pulse bg-primary" />
                         </p>
                       ) : (
@@ -310,11 +390,13 @@ const ChatPage = () => {
                       {streamingSources.length > 0 && (
                         <div className="mt-[0.8rem] flex flex-wrap gap-[0.6rem] border-t border-outline-variant/10 pt-[0.8rem]">
                           {streamingSources.map(src => (
-                            <span
+                            <button
+                              type="button"
                               key={src.note_number}
-                              className="rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary">
-                              Note #{src.note_number}
-                            </span>
+                              onClick={() => navigate("/", { state: { noteNumber: src.note_number } })}
+                              className="cursor-pointer rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary transition-colors hover:bg-primary/20 hover:text-primary">
+                              Note #{src.note_number}{src.title ? ` — ${src.title}` : ""}
+                            </button>
                           ))}
                         </div>
                       )}

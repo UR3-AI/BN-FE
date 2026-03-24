@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 type BlockType =
   | "h1"
@@ -10,6 +10,9 @@ type BlockType =
   | "code"
   | "hr"
   | "table"
+  | "todo"
+  | "callout"
+  | "toggle"
   | "paragraph";
 
 interface Block {
@@ -19,20 +22,30 @@ interface Block {
   indent: number;
 }
 
+interface NoteLinkItem {
+  note_number: number;
+  title: string | null;
+}
+
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  onNoteClick?: (noteNumber: number) => void;
+  notes?: NoteLinkItem[];
 }
 
 const generateId = () => crypto.randomUUID();
 
 const BLOCK_PATTERNS: { pattern: RegExp; type: BlockType }[] = [
+  { pattern: /^- \[[x ]\] /i, type: "todo" },
   { pattern: /^### /, type: "h3" },
   { pattern: /^## /, type: "h2" },
   { pattern: /^# /, type: "h1" },
   { pattern: /^[-*] /, type: "ul" },
   { pattern: /^\d+\. /, type: "ol" },
+  { pattern: /^> \[!callout\] /i, type: "callout" },
+  { pattern: /^> \[!toggle\] /i, type: "toggle" },
   { pattern: /^> /, type: "blockquote" },
   { pattern: /^```/, type: "code" },
   { pattern: /^---$/, type: "hr" },
@@ -60,8 +73,25 @@ const parseMarkdown = (text: string): Block[] => {
 
   while (i < lines.length) {
     const line = lines[i];
-    if (isTableRow(line)) {
-      // Collect consecutive table rows into one table block
+
+    // Code block: ``` ~ ```
+    if (line.trim().startsWith("```")) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length) i++; // skip closing ```
+      const raw = "```" + lang + "\n" + codeLines.join("\n") + "\n```";
+      blocks.push({
+        id: generateId(),
+        type: "code",
+        raw,
+        indent: 0,
+      });
+    } else if (isTableRow(line)) {
       const tableLines: string[] = [];
       while (i < lines.length && isTableRow(lines[i])) {
         tableLines.push(lines[i]);
@@ -111,6 +141,16 @@ const applyInlineFormatting = (text: string): string => {
       .replace(/\*([^*]+)\*/g, "<em>$1</em>")
       // strikethrough
       .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+      // highlight
+      .replace(/==([^=]+)==/g, '<mark class="inline-highlight">$1</mark>')
+      // note link [[Note #N|title]]
+      .replace(/\[\[Note #(\d+)\|([^\]]*)\]\]/g, (_match, num, title) => {
+        return `<a href="#note-${num}" class="note-link" data-note="${num}">📝 ${title || `Note #${num}`}</a>`;
+      })
+      // note link [[Note #N]] (without title)
+      .replace(/\[\[Note #(\d+)\]\]/g, (_match, num) => {
+        return `<a href="#note-${num}" class="note-link" data-note="${num}">📝 Note #${num}</a>`;
+      })
       // link (with URL sanitization + attribute escaping)
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
         const safe = sanitizeUrl(url);
@@ -122,7 +162,11 @@ const applyInlineFormatting = (text: string): string => {
 };
 
 const getDisplayText = (block: Block): string => {
-  const raw = block.raw.trim();
+  // indent 공백을 제거하되 trim으로 후행 공백까지 없애지 않음
+  const raw = block.raw.replace(/^\s{0,}/, s => {
+    const indentSpaces = block.indent * 2;
+    return s.length >= indentSpaces ? s.slice(indentSpaces) : "";
+  }).trim();
   switch (block.type) {
     case "h1":
       return raw.replace(/^# /, "");
@@ -134,10 +178,22 @@ const getDisplayText = (block: Block): string => {
       return raw.replace(/^[-*] /, "");
     case "ol":
       return raw.replace(/^\d+\. /, "");
+    case "todo":
+      return raw.replace(/^- \[[x ]\] /i, "");
     case "blockquote":
       return raw.replace(/^> /, "");
-    case "code":
+    case "callout":
+      return raw.replace(/^> \[!callout\] /i, "");
+    case "toggle":
+      return raw.replace(/^> \[!toggle\] /i, "");
+    case "code": {
+      // 멀티라인 코드블록: ```lang\n...\n``` → 내용만 추출
+      const codeLines = block.raw.split("\n");
+      if (codeLines.length >= 2) {
+        return codeLines.slice(1, codeLines[codeLines.length - 1].trim() === "```" ? -1 : undefined).join("\n");
+      }
       return raw.replace(/^```/, "").replace(/```$/, "");
+    }
     case "table":
       return raw;
     default:
@@ -147,25 +203,30 @@ const getDisplayText = (block: Block): string => {
 
 const getBlockClassName = (block: Block): string => {
   const baseClasses = "w-full bg-transparent outline-none break-words";
-  const indentClass = block.indent > 0 ? `pl-[${block.indent * 2.4}rem]` : "";
 
   switch (block.type) {
     case "h1":
-      return `${baseClasses} ${indentClass} text-[3.6rem] font-extrabold leading-tight text-on-surface`;
+      return `${baseClasses} text-[3.6rem] font-extrabold leading-tight text-on-surface`;
     case "h2":
-      return `${baseClasses} ${indentClass} text-[2.8rem] font-bold leading-snug text-on-surface`;
+      return `${baseClasses} text-[2.8rem] font-bold leading-snug text-on-surface`;
     case "h3":
-      return `${baseClasses} ${indentClass} text-[2.2rem] font-semibold leading-snug text-on-surface`;
+      return `${baseClasses} text-[2.2rem] font-semibold leading-snug text-on-surface`;
     case "ul":
-      return `${baseClasses} ${indentClass} text-[2rem] leading-relaxed text-on-surface/90`;
+      return `${baseClasses} text-[2rem] leading-relaxed text-on-surface/90`;
     case "ol":
-      return `${baseClasses} ${indentClass} text-[2rem] leading-relaxed text-on-surface/90`;
+      return `${baseClasses} text-[2rem] leading-relaxed text-on-surface/90`;
     case "blockquote":
-      return `${baseClasses} ${indentClass} border-l-4 border-primary/30 pl-[1.6rem] text-[2rem] leading-relaxed text-on-surface-variant italic`;
+      return `${baseClasses} border-l-4 border-primary/30 pl-[1.6rem] text-[2rem] leading-relaxed text-on-surface-variant italic`;
+    case "todo":
+      return `${baseClasses} text-[2rem] leading-relaxed text-on-surface/90`;
+    case "callout":
+      return `${baseClasses} text-[2rem] leading-relaxed text-on-surface/90`;
+    case "toggle":
+      return `${baseClasses} text-[2rem] leading-relaxed text-on-surface/90`;
     case "code":
       return `${baseClasses} rounded-[0.5rem] bg-surface-container-low p-[1.6rem] font-mono text-[1.4rem] leading-relaxed text-secondary`;
     default:
-      return `${baseClasses} ${indentClass} text-[2rem] leading-relaxed text-on-surface/90`;
+      return `${baseClasses} text-[2rem] leading-relaxed text-on-surface/90`;
   }
 };
 
@@ -177,6 +238,9 @@ const BLOCK_PREFIX: Partial<Record<BlockType, string>> = {
   ol: "1. ",
   blockquote: "> ",
   code: "```",
+  todo: "- [ ] ",
+  callout: "> [!callout] ",
+  toggle: "> [!toggle] ",
 };
 
 // ─── Slash Command Types ───────────────────────────────────────────────────────
@@ -195,7 +259,10 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { id: "h3", label: "Heading 3", icon: "H₃", description: "Small heading" },
   { id: "ul", label: "Bullet List", icon: "•", description: "Unordered list" },
   { id: "ol", label: "Numbered List", icon: "1.", description: "Ordered list" },
+  { id: "todo", label: "To-do", icon: "☐", description: "Checkbox item" },
   { id: "blockquote", label: "Quote", icon: "❝", description: "Quote block" },
+  { id: "callout", label: "Callout", icon: "💡", description: "Callout block" },
+  { id: "toggle", label: "Toggle", icon: "▶", description: "Collapsible block" },
   { id: "code", label: "Code Block", icon: "</>", description: "Code block" },
   { id: "hr", label: "Divider", icon: "—", description: "Horizontal rule" },
 ];
@@ -528,7 +595,7 @@ interface BlockEditorProps {
   isFocused: boolean;
   onFocus: () => void;
   onChange: (raw: string) => void;
-  onEnter: (caretOffset: number) => void;
+  onEnter: (caretOffset: number, currentText?: string) => void;
   onBackspace: (isEmpty: boolean, atStart: boolean) => void;
   onTab: (shift: boolean) => void;
   onArrowUp: () => void;
@@ -539,10 +606,23 @@ interface BlockEditorProps {
   onSlashArrowUp: () => void;
   onSlashArrowDown: () => void;
   onSlashEnter: () => void;
+  onNoteLinkInput: (filter: string, anchorEl: HTMLDivElement) => void;
+  onNoteLinkClose: () => void;
+  isNoteLinkOpen: boolean;
+  onNoteLinkArrowUp: () => void;
+  onNoteLinkArrowDown: () => void;
+  onNoteLinkEnter: () => void;
+  onPaste: (lines: string[]) => void;
+  onToggle?: (blockId: string) => void;
+  isToggleOpenProp?: boolean;
   editorRef: (el: HTMLDivElement | null) => void;
 }
 
-const BlockEditor = ({
+// ─── Toggle Block ─────────────────────────────────────────────────────────────
+
+// ToggleBlock은 제목만 렌더링. 하위 내용은 indent된 일반 블록으로 관리됨.
+
+const BlockEditorInner = ({
   block,
   isFocused,
   onFocus,
@@ -558,6 +638,15 @@ const BlockEditor = ({
   onSlashArrowUp,
   onSlashArrowDown,
   onSlashEnter,
+  onNoteLinkInput,
+  onNoteLinkClose,
+  isNoteLinkOpen,
+  onNoteLinkArrowUp,
+  onNoteLinkArrowDown,
+  onNoteLinkEnter,
+  onPaste,
+  onToggle,
+  isToggleOpenProp,
   editorRef,
 }: BlockEditorProps) => {
   const divRef = useRef<HTMLDivElement>(null);
@@ -575,19 +664,25 @@ const BlockEditor = ({
   const prevTypeRef = useRef(block.type);
 
   // Sync rendered HTML when block changes (DOM-only update, no setState)
+  // 한글 IME 조합 중에는 절대 DOM을 건드리지 않음
+  const blockRef = useRef(block);
+  const displayTextRef = useRef(displayText);
+  blockRef.current = block;
+  displayTextRef.current = displayText;
+
   useEffect(() => {
+    if (isComposing.current) return; // IME 조합 중 → skip
     const el = divRef.current;
-    if (!el || block.type === "table") return;
+    if (!el || block.type === "table" || block.type === "code") return;
     const typeChanged = prevTypeRef.current !== block.type;
     prevTypeRef.current = block.type;
 
-    // Always update when not focused, or when block type changed (prefix stripped)
+    // focused 상태에서는 type 변경 시에만 sync
     if (!isFocused || typeChanged) {
       const escaped = escapeHtml(displayText);
-      const html = block.type === "hr" ? "" : block.type === "code" ? escaped : applyInlineFormatting(escaped);
+      const html = block.type === "hr" ? "" : applyInlineFormatting(escaped);
       if (el.innerHTML !== html) {
         el.innerHTML = html;
-        // Restore caret to end after type change
         if (isFocused && typeChanged) {
           const range = document.createRange();
           const sel = window.getSelection();
@@ -598,7 +693,7 @@ const BlockEditor = ({
         }
       }
     }
-  }, [block, block.type, displayText, isFocused]);
+  }, [block.type, displayText, isFocused]);
 
   const handleFocus = () => {
     onFocus();
@@ -617,8 +712,22 @@ const BlockEditor = ({
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const text = e.clipboardData.getData("text/plain");
-    document.execCommand("insertText", false, text);
+    const text = e.clipboardData
+      .getData("text/plain")
+      .replace(/\u00A0/g, " "); // &nbsp; → space
+
+    let lines = text.split("\n");
+    // 마지막 빈 줄 제거 ("text\n" → ["text"] 처리)
+    if (lines.length > 1 && lines[lines.length - 1] === "") {
+      lines = lines.slice(0, -1);
+    }
+    if (lines.length <= 1) {
+      // 단일 줄: 기존 블록에 삽입
+      document.execCommand("insertText", false, lines[0] ?? "");
+      return;
+    }
+    // 멀티라인: 부모에서 블록 분할 처리
+    onPaste(lines);
   };
 
   const getSlashFilter = (el: HTMLDivElement): string | null => {
@@ -640,7 +749,11 @@ const BlockEditor = ({
 
     const html = el.innerHTML;
     const text = htmlToMarkdownInline(html);
-    const prefix = BLOCK_PREFIX[block.type] ?? "";
+    let prefix = BLOCK_PREFIX[block.type] ?? "";
+    // todo: checked 상태 유지
+    if (block.type === "todo") {
+      prefix = block.raw.trim().match(/^- \[x\] /i) ? "- [x] " : "- [ ] ";
+    }
     const indent = "  ".repeat(block.indent);
     onChange(indent + prefix + text);
 
@@ -650,6 +763,16 @@ const BlockEditor = ({
       onSlashInput(filter, el);
     } else {
       onSlashClose();
+    }
+
+    // [[ note link detection
+    const plainText = el.textContent ?? "";
+    const bracketIdx = plainText.lastIndexOf("[[");
+    if (bracketIdx !== -1 && !plainText.slice(bracketIdx).includes("]]")) {
+      const noteLinkFilter = plainText.slice(bracketIdx + 2);
+      onNoteLinkInput(noteLinkFilter, el);
+    } else {
+      onNoteLinkClose();
     }
   };
 
@@ -680,6 +803,14 @@ const BlockEditor = ({
       }
     }
 
+    // Note link menu navigation
+    if (isNoteLinkOpen) {
+      if (e.key === "ArrowUp") { e.preventDefault(); onNoteLinkArrowUp(); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); onNoteLinkArrowDown(); return; }
+      if (e.key === "Enter") { e.preventDefault(); onNoteLinkEnter(); return; }
+      if (e.key === "Escape") { e.preventDefault(); onNoteLinkClose(); return; }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       const el = divRef.current;
@@ -695,7 +826,7 @@ const BlockEditor = ({
         const visibleOffset = preRange.toString().length;
         offset = mapVisibleToMarkdownOffset(text, visibleOffset);
       }
-      onEnter(offset);
+      onEnter(offset, text);
       return;
     }
 
@@ -766,6 +897,73 @@ const BlockEditor = ({
       }
       return;
     }
+
+    // ─── Format shortcuts ──────────────────────────────────────────────────────
+    const isMod = e.metaKey || e.ctrlKey;
+    if (isMod && block.type !== "code") {
+      const formatMap: Record<string, [string, string]> = {
+        b: ["**", "**"],
+        i: ["*", "*"],
+        e: ["`", "`"],
+      };
+
+      // Ctrl+Shift+S → strikethrough, Ctrl+Shift+H → highlight
+      if (e.shiftKey && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        applyFormat("~~", "~~");
+        return;
+      }
+      if (e.shiftKey && (e.key === "h" || e.key === "H")) {
+        e.preventDefault();
+        applyFormat("==", "==");
+        return;
+      }
+
+      const fmt = formatMap[e.key.toLowerCase()];
+      if (fmt) {
+        e.preventDefault();
+        applyFormat(fmt[0], fmt[1]);
+        return;
+      }
+
+      // Ctrl+K → link
+      if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        applyFormat("[", "](url)");
+        return;
+      }
+    }
+  };
+
+  const applyFormat = (prefix: string, suffix: string) => {
+    const el = divRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) return;
+
+    // Get visible selection offsets
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(el);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const visStart = preRange.toString().length;
+    const visEnd = visStart + range.toString().length;
+
+    // Convert to markdown offsets
+    const text = htmlToMarkdownInline(el.innerHTML);
+    const mdStart = mapVisibleToMarkdownOffset(text, visStart);
+    const mdEnd = mapVisibleToMarkdownOffset(text, visEnd);
+
+    const result = toggleMarkup(text, mdStart, mdEnd, prefix, suffix);
+
+    const blockPrefix = BLOCK_PREFIX[block.type] ?? "";
+    if (block.type === "todo") {
+      const todoPrefix = block.raw.trim().match(/^- \[x\] /i) ? "- [x] " : "- [ ] ";
+      onChange("  ".repeat(block.indent) + todoPrefix + result.text);
+    } else {
+      onChange("  ".repeat(block.indent) + blockPrefix + result.text);
+    }
   };
 
   if (block.type === "table") {
@@ -774,6 +972,63 @@ const BlockEditor = ({
         block={block}
         onChange={onChange}
       />
+    );
+  }
+
+  if (block.type === "code") {
+    const codeLines = block.raw.split("\n");
+    const lang = codeLines[0]?.replace(/^```/, "").trim() || "";
+    const codeContent = codeLines.slice(1, codeLines[codeLines.length - 1]?.trim() === "```" ? -1 : undefined).join("\n");
+
+    return (
+      <div className="group/code my-[0.8rem] overflow-hidden rounded-[0.5rem] bg-surface-container-low">
+        {/* Header */}
+        <div className="flex items-center justify-between bg-surface-container px-[1.6rem] py-[0.6rem]">
+          <input
+            type="text"
+            value={lang}
+            onChange={e => {
+              const newLang = e.target.value;
+              const bodyLines = codeLines.slice(1, codeLines[codeLines.length - 1]?.trim() === "```" ? -1 : undefined);
+              onChange("```" + newLang + "\n" + bodyLines.join("\n") + "\n```");
+            }}
+            placeholder="language"
+            className="bg-transparent text-[1.1rem] font-mono text-on-surface-variant/60 outline-none placeholder:text-on-surface-variant/30"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(codeContent);
+            }}
+            className="text-[1rem] text-on-surface-variant/40 opacity-0 transition-opacity hover:text-on-surface-variant group-hover/code:opacity-100">
+            Copy
+          </button>
+        </div>
+        {/* Code Area */}
+        <textarea
+          value={codeContent}
+          onChange={e => {
+            onChange("```" + lang + "\n" + e.target.value + "\n```");
+          }}
+          onKeyDown={e => {
+            if (e.key === "Tab") {
+              e.preventDefault();
+              const target = e.currentTarget;
+              const start = target.selectionStart;
+              const end = target.selectionEnd;
+              const value = target.value;
+              const newValue = value.substring(0, start) + "  " + value.substring(end);
+              onChange("```" + lang + "\n" + newValue + "\n```");
+              requestAnimationFrame(() => {
+                target.selectionStart = target.selectionEnd = start + 2;
+              });
+            }
+          }}
+          spellCheck={false}
+          className="w-full resize-none bg-transparent px-[1.6rem] py-[1.2rem] font-mono text-[1.4rem] leading-relaxed text-secondary outline-none"
+          style={{ fieldSizing: "content", minHeight: "4rem" } as React.CSSProperties}
+        />
+      </div>
     );
   }
 
@@ -788,8 +1043,7 @@ const BlockEditor = ({
   if (block.type === "ul" || block.type === "ol") {
     return (
       <div
-        className="flex items-baseline gap-[0.8rem]"
-        style={{ paddingLeft: `${block.indent * 2.4}rem` }}>
+        className="flex items-baseline gap-[0.8rem]">
         <span className="flex-shrink-0 select-none text-[2rem] leading-relaxed text-on-surface/60">
           {block.type === "ul" ? "•" : "1."}
         </span>
@@ -807,9 +1061,117 @@ const BlockEditor = ({
           }}
           onCompositionEnd={() => {
             isComposing.current = false;
-            handleInput();
+            requestAnimationFrame(() => handleInput());
           }}
           className="min-w-0 flex-1 bg-transparent text-[2rem] leading-relaxed text-on-surface/90 outline-none"
+        />
+      </div>
+    );
+  }
+
+  if (block.type === "todo") {
+    const isChecked = /^- \[x\] /i.test(block.raw.trim());
+    return (
+      <div
+        className="flex items-baseline gap-[0.8rem]">
+        <button
+          type="button"
+          onMouseDown={e => {
+            e.preventDefault();
+            const newRaw = isChecked
+              ? block.raw.replace(/^(\s*)- \[x\] /i, "$1- [ ] ")
+              : block.raw.replace(/^(\s*)- \[ \] /, "$1- [x] ");
+            onChange(newRaw);
+          }}
+          className={`flex-shrink-0 mt-[0.4rem] h-[2rem] w-[2rem] rounded-[0.25rem] border-2 transition-colors ${
+            isChecked
+              ? "border-primary bg-primary"
+              : "border-on-surface-variant/30 hover:border-primary"
+          }`}>
+          {isChecked && (
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-on-primary, #fff)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+        <div
+          ref={setRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onCompositionStart={() => { isComposing.current = true; }}
+          onCompositionEnd={() => {
+            isComposing.current = false;
+            // 한글 IME: 브라우저가 DOM을 최종 업데이트한 후 처리
+            requestAnimationFrame(() => handleInput());
+          }}
+          className={`min-w-0 flex-1 bg-transparent text-[2rem] leading-relaxed outline-none ${
+            isChecked ? "text-on-surface/40 line-through" : "text-on-surface/90"
+          }`}
+        />
+      </div>
+    );
+  }
+
+  if (block.type === "callout") {
+    return (
+      <div className="my-[0.8rem] flex gap-[1.2rem] rounded-[0.5rem] bg-primary/5 border border-primary/10 p-[1.6rem]">
+        <span className="flex-shrink-0 text-[2rem] select-none">💡</span>
+        <div
+          ref={setRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onCompositionStart={() => { isComposing.current = true; }}
+          onCompositionEnd={() => {
+            isComposing.current = false;
+            // 한글 IME: 브라우저가 DOM을 최종 업데이트한 후 처리
+            requestAnimationFrame(() => handleInput());
+          }}
+          className="min-w-0 flex-1 bg-transparent text-[2rem] leading-relaxed text-on-surface/90 outline-none"
+        />
+      </div>
+    );
+  }
+
+  if (block.type === "toggle") {
+    const isToggleOpen = onToggle ? isToggleOpenProp : false;
+    return (
+      <div className="flex items-baseline gap-[0.8rem]">
+        <button
+          type="button"
+          onMouseDown={e => {
+            e.preventDefault();
+            onToggle?.(block.id);
+          }}
+          className="flex-shrink-0 mt-[0.2rem] text-[1.6rem] text-on-surface-variant/50 transition-transform hover:text-on-surface-variant"
+          style={{ transform: isToggleOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+          ▶
+        </button>
+        <div
+          ref={setRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onCompositionStart={() => { isComposing.current = true; }}
+          onCompositionEnd={() => {
+            isComposing.current = false;
+            // 한글 IME: 브라우저가 DOM을 최종 업데이트한 후 처리
+            requestAnimationFrame(() => handleInput());
+          }}
+          className="min-w-0 flex-1 bg-transparent text-[2rem] font-medium leading-relaxed text-on-surface/90 outline-none"
         />
       </div>
     );
@@ -830,12 +1192,14 @@ const BlockEditor = ({
       }}
       onCompositionEnd={() => {
         isComposing.current = false;
-        handleInput();
+        requestAnimationFrame(() => handleInput());
       }}
       className={getBlockClassName(block)}
     />
   );
 };
+
+const BlockEditor = memo(BlockEditorInner);
 
 // ─── Pure helper functions ─────────────────────────────────────────────────────
 
@@ -850,9 +1214,12 @@ const escapeHtml = (text: string): string => {
 const mapVisibleToMarkdownOffset = (mdText: string, visibleOffset: number): number => {
   // Strip markdown syntax to get visible text, then map offset back
   const visible = mdText
+    .replace(/\[\[Note #(\d+)\|([^\]]*)\]\]/g, "📝 $2")
+    .replace(/\[\[Note #(\d+)\]\]/g, "📝 Note #$1")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
     .replace(/~~([^~]+)~~/g, "$1")
+    .replace(/==([^=]+)==/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
@@ -866,20 +1233,28 @@ const mapVisibleToMarkdownOffset = (mdText: string, visibleOffset: number): numb
     // Check for markdown patterns at current position
     const remaining = mdText.slice(mdIdx);
     let matched = false;
-    for (const [pattern, groupFn] of [
-      [/^\*\*([^*]+)\*\*/, (m: RegExpMatchArray) => m[1]],
-      [/^\*([^*]+)\*/, (m: RegExpMatchArray) => m[1]],
-      [/^~~([^~]+)~~/, (m: RegExpMatchArray) => m[1]],
-      [/^`([^`]+)`/, (m: RegExpMatchArray) => m[1]],
-      [/^\[([^\]]+)\]\([^)]+\)/, (m: RegExpMatchArray) => m[1]],
-    ] as [RegExp, (m: RegExpMatchArray) => string][]) {
+    // 각 패턴: [regex, visibleFn, skipEntireMatch?]
+    // note link는 전체 매치를 skip (내부 오프셋 계산 불가)
+    const patterns: [RegExp, (m: RegExpMatchArray) => string, boolean][] = [
+      [/^\[\[Note #(\d+)\|([^\]]*)\]\]/, (m) => `📝 ${m[2]}`, true],
+      [/^\[\[Note #(\d+)\]\]/, (m) => `📝 Note #${m[1]}`, true],
+      [/^\*\*([^*]+)\*\*/, (m) => m[1], false],
+      [/^\*([^*]+)\*/, (m) => m[1], false],
+      [/^~~([^~]+)~~/, (m) => m[1], false],
+      [/^==([^=]+)==/, (m) => m[1], false],
+      [/^`([^`]+)`/, (m) => m[1], false],
+      [/^\[([^\]]+)\]\([^)]+\)/, (m) => m[1], false],
+    ];
+    for (const [pattern, groupFn, skipEntire] of patterns) {
       const match = remaining.match(pattern);
       if (match) {
         const visiblePart = groupFn(match);
         const charsNeeded = visibleOffset - visIdx;
         if (charsNeeded <= visiblePart.length) {
-          // Offset falls within this formatted segment
-          // Find start of visible content within the match
+          if (skipEntire) {
+            // note link 등: visible offset에 매핑 불가 → 매치 끝으로 이동
+            return mdIdx + match[0].length;
+          }
           const prefixLen = match[0].indexOf(visiblePart);
           return mdIdx + prefixLen + charsNeeded;
         }
@@ -897,12 +1272,62 @@ const mapVisibleToMarkdownOffset = (mdText: string, visibleOffset: number): numb
   return mdIdx;
 };
 
+const toggleMarkup = (
+  text: string,
+  start: number,
+  end: number,
+  prefix: string,
+  suffix: string,
+): { text: string; newStart: number; newEnd: number } => {
+  const selected = text.slice(start, end);
+  // Check if already wrapped
+  const wrappedStart = start - prefix.length;
+  const wrappedEnd = end + suffix.length;
+  if (
+    wrappedStart >= 0 &&
+    wrappedEnd <= text.length &&
+    text.slice(wrappedStart, start) === prefix &&
+    text.slice(end, wrappedEnd) === suffix
+  ) {
+    // Unwrap
+    return {
+      text: text.slice(0, wrappedStart) + selected + text.slice(wrappedEnd),
+      newStart: wrappedStart,
+      newEnd: wrappedStart + selected.length,
+    };
+  }
+  // Wrap
+  return {
+    text: text.slice(0, start) + prefix + selected + suffix + text.slice(end),
+    newStart: start + prefix.length,
+    newEnd: end + prefix.length,
+  };
+};
+
 const htmlToMarkdownInline = (html: string): string => {
-  return html
-    .replace(/<strong>([^<]*)<\/strong>/g, "**$1**")
-    .replace(/<em>([^<]*)<\/em>/g, "*$1*")
-    .replace(/<del>([^<]*)<\/del>/g, "~~$1~~")
+  // 중첩 태그 처리를 위해 내부에 다른 태그를 허용 (.*? non-greedy)
+  // 안쪽부터 바깥으로 반복 적용하여 중첩 해소
+  let result = html;
+  // 최대 3회 반복하여 중첩된 서식 해소
+  for (let i = 0; i < 3; i++) {
+    const prev = result;
+    result = result
+      .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
+      .replace(/<em>(.*?)<\/em>/g, "*$1*")
+      .replace(/<del>(.*?)<\/del>/g, "~~$1~~")
+      .replace(/<mark[^>]*>(.*?)<\/mark>/g, "==$1==");
+    if (result === prev) break;
+  }
+  return result
     .replace(/<code[^>]*>([^<]*)<\/code>/g, "`$1`")
+    // note link → [[Note #N|title]]
+    .replace(/<a[^>]*data-note="(\d+)"[^>]*>[^<]*<\/a>/g, (_, num) => {
+      // Try to extract title from the visible text
+      const titleMatch = _.match(/>📝\s*(.+?)<\/a>/);
+      const title = titleMatch ? titleMatch[1] : "";
+      const isDefault = title === `Note #${num}`;
+      return isDefault ? `[[Note #${num}]]` : `[[Note #${num}|${title}]]`;
+    })
     .replace(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g, "[$2]($1)")
     .replace(/<br\s*\/?>/g, "")
     .replace(/<[^>]+>/g, "")
@@ -940,13 +1365,13 @@ const SLASH_MENU_INITIAL: SlashMenuState = {
   position: { top: 0, left: 0 },
 };
 
-const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: MarkdownEditorProps) => {
+const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onNoteClick, notes: notesList = [] }: MarkdownEditorProps) => {
   // Initial blocks are derived from `value` once on mount.
   // For external value resets (e.g. note switching), pass a new `key` to this component
   // so it remounts and re-initializes state cleanly.
   const [blocks, setBlocks] = useState<Block[]>(() => {
     if (!value || value.trim() === "") {
-      return [{ id: generateId(), type: "paragraph", raw: "", indent: 0 }];
+      return [{ id: generateId(), type: "paragraph" as BlockType, raw: "", indent: 0 }];
     }
     return parseMarkdown(value);
   });
@@ -956,7 +1381,57 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
   // -1 = start, -2 = end, >= 0 = specific visible character offset
   const pendingFocusOffset = useRef<number>(-1);
 
+  // ─── Undo / Redo ────────────────────────────────────────────────────────────
+  const historyRef = useRef<{ stack: Block[][]; index: number }>(undefined!);
+  if (!historyRef.current) {
+    historyRef.current = { stack: [blocks], index: 0 };
+  }
+  const isUndoRedoRef = useRef(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pushHistory = useCallback((newBlocks: Block[]) => {
+    if (isUndoRedoRef.current) return;
+
+    if (debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      const history = historyRef.current;
+      // Discard redo stack
+      history.stack = history.stack.slice(0, history.index + 1);
+      history.stack.push(newBlocks);
+      // Limit to 50 entries
+      if (history.stack.length > 50) {
+        history.stack.shift();
+      }
+      history.index = history.stack.length - 1;
+    }, 300);
+  }, []);
+
   const [slashMenu, setSlashMenu] = useState<SlashMenuState>(SLASH_MENU_INITIAL);
+  const [dragState, setDragState] = useState<{ dragging: number; over: number }>({ dragging: -1, over: -1 });
+  const [collapsedToggles, setCollapsedToggles] = useState<Set<string>>(new Set());
+
+  const handleToggle = useCallback((blockId: string) => {
+    setCollapsedToggles(prev => {
+      const next = new Set(prev);
+      if (next.has(blockId)) {
+        next.delete(blockId);
+      } else {
+        next.add(blockId);
+      }
+      return next;
+    });
+  }, []);
+  const [noteLinkMenu, setNoteLinkMenu] = useState<{
+    open: boolean;
+    filter: string;
+    selectedIndex: number;
+    blockIndex: number;
+    position: { top: number; left: number };
+  }>({ open: false, filter: "", selectedIndex: 0, blockIndex: -1, position: { top: 0, left: 0 } });
 
   // Focus pending block after render
   useEffect(() => {
@@ -1007,8 +1482,9 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
   const notifyChange = useCallback(
     (newBlocks: Block[]) => {
       onChange(blocksToMarkdown(newBlocks));
+      pushHistory(newBlocks);
     },
-    [onChange],
+    [onChange, pushHistory],
   );
 
   const handleBlockChange = useCallback(
@@ -1028,10 +1504,11 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
   );
 
   const handleEnter = useCallback(
-    (index: number, caretOffset: number) => {
+    (index: number, caretOffset: number, currentText?: string) => {
       setBlocks(prev => {
         const block = prev[index];
-        const displayText = getDisplayText(block);
+        // currentText가 있으면 DOM의 최신 텍스트 사용 (stale block.raw 방지)
+        const displayText = currentText ?? getDisplayText(block);
         const before = displayText.slice(0, caretOffset);
         const after = displayText.slice(caretOffset);
 
@@ -1041,8 +1518,8 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         // Update current block
         const updatedCurrent: Block = { ...block, raw: indent + prefix + before };
 
-        // Empty list item -> convert to paragraph (no new block)
-        if ((block.type === "ul" || block.type === "ol") && before.trim() === "") {
+        // Empty list/todo item -> convert to paragraph (no new block)
+        if ((block.type === "ul" || block.type === "ol" || block.type === "todo") && before.trim() === "") {
           const converted: Block = { ...block, type: "paragraph", raw: "", indent: 0 };
           const updated = prev.map((b, i) => (i === index ? converted : b));
           pendingFocusIndex.current = index;
@@ -1051,7 +1528,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
           return updated;
         }
 
-        // New block: for list items, continue list; otherwise paragraph
+        // New block: for list/todo items, continue; otherwise paragraph
         let newRaw: string;
         let newType: BlockType;
         if (block.type === "ul") {
@@ -1060,6 +1537,18 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         } else if (block.type === "ol") {
           newRaw = indent + "1. " + after;
           newType = "ol";
+        } else if (block.type === "todo") {
+          newRaw = indent + "- [ ] " + after;
+          newType = "todo";
+        } else if (block.type === "toggle") {
+          // 토글에서 Enter → indent된 paragraph 생성 + 토글 열기
+          newRaw = "  " + after;
+          newType = detectBlockType(after.trim());
+          setCollapsedToggles(prev => {
+            const next = new Set(prev);
+            next.delete(block.id);
+            return next;
+          });
         } else {
           newRaw = after;
           newType = detectBlockType(after.trim());
@@ -1069,7 +1558,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
           id: generateId(),
           type: newType,
           raw: newRaw,
-          indent: block.indent,
+          indent: block.type === "toggle" ? block.indent + 1 : block.indent,
         };
 
         const updated = [
@@ -1155,21 +1644,101 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
 
   const handleArrowUp = useCallback((index: number) => {
     if (index <= 0) return;
-    setBlocks(prev => {
-      pendingFocusIndex.current = index - 1;
-      pendingFocusOffset.current = -2;
-      return prev;
-    });
+    const el = blockRefs.current[index - 1];
+    if (!el) return;
+    el.focus();
+    // 캐럿을 끝으로
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }, []);
 
   const handleArrowDown = useCallback((index: number) => {
-    setBlocks(prev => {
-      if (index >= prev.length - 1) return prev;
-      pendingFocusIndex.current = index + 1;
-      pendingFocusOffset.current = -1;
-      return prev;
-    });
+    const el = blockRefs.current[index + 1];
+    if (!el) return;
+    el.focus();
+    // 캐럿을 처음으로
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(el);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }, []);
+
+  const handlePasteMultiline = useCallback(
+    (index: number, lines: string[]) => {
+      setBlocks(prev => {
+        const currentBlock = prev[index];
+        const el = blockRefs.current[index];
+
+        // 현재 블록의 캐럿 위치에서 텍스트 분할
+        let beforeCaret = getDisplayText(currentBlock);
+        let afterCaret = "";
+        if (el) {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            const preRange = range.cloneRange();
+            preRange.selectNodeContents(el);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            const caretPos = preRange.toString().length;
+            const fullText = getDisplayText(currentBlock);
+            beforeCaret = fullText.slice(0, caretPos);
+            afterCaret = fullText.slice(caretPos);
+          }
+        }
+
+        const prefix = BLOCK_PREFIX[currentBlock.type] ?? "";
+        const indent = "  ".repeat(currentBlock.indent);
+
+        // 첫 번째 줄: 현재 블록의 커서 앞 텍스트 + 첫 번째 줄
+        const firstLine = beforeCaret + lines[0];
+        const updatedCurrent: Block = {
+          ...currentBlock,
+          raw: indent + prefix + firstLine,
+          type: detectBlockType((indent + prefix + firstLine).trim()),
+        };
+
+        // 중간 줄들: 새 블록으로 생성
+        const newBlocks: Block[] = lines.slice(1, -1).map(line => ({
+          id: generateId(),
+          type: detectBlockType(line.trim()),
+          raw: line,
+          indent: getIndent(line),
+        }));
+
+        // 마지막 줄 + 커서 뒤 텍스트
+        const lastLine = (lines[lines.length - 1] ?? "") + afterCaret;
+        const lastBlock: Block = {
+          id: generateId(),
+          type: detectBlockType(lastLine.trim()),
+          raw: lastLine,
+          indent: getIndent(lastLine),
+        };
+
+        const result = [
+          ...prev.slice(0, index),
+          updatedCurrent,
+          ...newBlocks,
+          lastBlock,
+          ...prev.slice(index + 1),
+        ];
+
+        // 마지막 붙여넣기 블록에 포커스
+        const focusIdx = index + newBlocks.length + 1;
+        pendingFocusIndex.current = focusIdx;
+        pendingFocusOffset.current = lastLine.length - afterCaret.length;
+
+        notifyChange(result);
+        return result;
+      });
+    },
+    [notifyChange],
+  );
 
   // ─── Slash Command Handlers ────────────────────────────────────────────────
 
@@ -1239,7 +1808,10 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         h3: "### ",
         ul: "- ",
         ol: "1. ",
+        todo: "- [ ] ",
         blockquote: "> ",
+        callout: "> [!callout] ",
+        toggle: "> [!toggle] ",
         code: "```",
         hr: "---",
       };
@@ -1248,10 +1820,21 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
 
       setBlocks(prev => {
         const block = prev[blockIndex];
-        // Get current raw without slash command text
         const displayText = getDisplayText(block);
         const slashIdx = displayText.lastIndexOf("/");
         const textBefore = slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
+
+        // 코드블록은 멀티라인 블록으로 생성
+        if (commandId === "code") {
+          const newBlock: Block = {
+            ...block,
+            raw: "```\n" + textBefore + "\n```",
+            type: "code",
+          };
+          const updated = prev.map((b, i) => (i === blockIndex ? newBlock : b));
+          notifyChange(updated);
+          return updated;
+        }
 
         const newRaw = newPrefix + textBefore;
         const newType = detectBlockType(newRaw.trim()) || ("paragraph" as BlockType);
@@ -1338,11 +1921,180 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
 
   const isEmpty = blocks.length === 0 || (blocks.length === 1 && blocks[0].raw.trim() === "");
 
+  // ─── Note Link Menu Handlers ──────────────────────────────────────────────
+
+  const handleNoteLinkInput = useCallback(
+    (index: number, filter: string, anchorEl: HTMLDivElement) => {
+      const rect = anchorEl.getBoundingClientRect();
+      const containerRect = anchorEl.closest(".markdown-editor-root")?.getBoundingClientRect();
+      const top = containerRect ? rect.bottom - containerRect.top + 4 : rect.bottom + 4;
+      const left = containerRect ? rect.left - containerRect.left : rect.left;
+      setNoteLinkMenu({ open: true, filter, selectedIndex: 0, blockIndex: index, position: { top, left } });
+    },
+    [],
+  );
+
+  const handleNoteLinkClose = useCallback(() => {
+    setNoteLinkMenu(prev => (prev.open ? { ...prev, open: false } : prev));
+  }, []);
+
+  const handleNoteLinkArrowUp = useCallback(() => {
+    setNoteLinkMenu(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+  }, []);
+
+  const handleNoteLinkArrowDown = useCallback(() => {
+    setNoteLinkMenu(prev => {
+      const maxIdx = notesList.filter(n =>
+        (n.title ?? "").toLowerCase().includes(prev.filter.toLowerCase()),
+      ).length - 1;
+      return { ...prev, selectedIndex: Math.min(prev.selectedIndex + 1, Math.max(0, maxIdx)) };
+    });
+  }, [notesList]);
+
+  const handleNoteLinkSelect = useCallback(
+    (note: NoteLinkItem) => {
+      const blockIndex = noteLinkMenu.blockIndex;
+      const el = blockRefs.current[blockIndex];
+      if (!el) return;
+
+      const text = htmlToMarkdownInline(el.innerHTML);
+      const bracketIdx = text.lastIndexOf("[[");
+      if (bracketIdx === -1) return;
+
+      const before = text.slice(0, bracketIdx);
+      const after = text.slice(bracketIdx).replace(/\[\[[^\]]*$/, "");
+      const linkText = `[[Note #${note.note_number}|${note.title ?? "Untitled"}]]`;
+      const newText = before + linkText + after;
+
+      setBlocks(prev => {
+        const block = prev[blockIndex];
+        const prefix = BLOCK_PREFIX[block.type] ?? "";
+        const indent = "  ".repeat(block.indent);
+        const updated = prev.map((b, i) =>
+          i === blockIndex ? { ...b, raw: indent + prefix + newText } : b,
+        );
+        notifyChange(updated);
+        return updated;
+      });
+
+      setNoteLinkMenu(prev => ({ ...prev, open: false }));
+    },
+    [noteLinkMenu.blockIndex, notifyChange],
+  );
+
+  const handleNoteLinkEnter = useCallback(() => {
+    const filtered = notesList.filter(n =>
+      (n.title ?? "").toLowerCase().includes(noteLinkMenu.filter.toLowerCase()),
+    );
+    const idx = Math.min(noteLinkMenu.selectedIndex, filtered.length - 1);
+    if (filtered[idx]) handleNoteLinkSelect(filtered[idx]);
+  }, [noteLinkMenu, notesList, handleNoteLinkSelect]);
+
+  const handleDragStart = useCallback((index: number) => {
+    setDragState({ dragging: index, over: -1 });
+  }, []);
+
+  const handleDragOver = useCallback((index: number) => {
+    setDragState(prev => (prev.dragging === index ? prev : { ...prev, over: index }));
+  }, []);
+
+  const handleDrop = useCallback(
+    (dropIndex: number) => {
+      const fromIndex = dragState.dragging;
+      if (fromIndex === -1 || fromIndex === dropIndex) {
+        setDragState({ dragging: -1, over: -1 });
+        return;
+      }
+      setBlocks(prev => {
+        const result = [...prev];
+        const [moved] = result.splice(fromIndex, 1);
+        result.splice(dropIndex > fromIndex ? dropIndex - 1 : dropIndex, 0, moved);
+        notifyChange(result);
+        return result;
+      });
+      setDragState({ dragging: -1, over: -1 });
+    },
+    [dragState.dragging, notifyChange],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragState({ dragging: -1, over: -1 });
+  }, []);
+
+  // blocks를 ref로 추적하여 stale closure 방지
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
+
+  const handleUndoRedo = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+      const isUndo = modifier && !e.shiftKey && e.key === "z";
+      const isRedo =
+        (modifier && e.shiftKey && e.key === "z") ||
+        (modifier && !e.shiftKey && e.key === "y");
+
+      if (!isUndo && !isRedo) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Flush pending debounce immediately before undo/redo
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+        const history = historyRef.current;
+        history.stack = history.stack.slice(0, history.index + 1);
+        history.stack.push(blocksRef.current);
+        if (history.stack.length > 50) {
+          history.stack.shift();
+        }
+        history.index = history.stack.length - 1;
+      }
+
+      const history = historyRef.current;
+
+      if (isUndo) {
+        if (history.index <= 0) return;
+        history.index -= 1;
+      } else {
+        if (history.index >= history.stack.length - 1) return;
+        history.index += 1;
+      }
+
+      const targetBlocks = history.stack[history.index];
+      if (!targetBlocks) return;
+
+      isUndoRedoRef.current = true;
+      setBlocks(targetBlocks);
+      onChange(blocksToMarkdown(targetBlocks));
+      // 다음 렌더 사이클에서 pushHistory가 호출될 수 있으므로 rAF로 해제
+      requestAnimationFrame(() => {
+        isUndoRedoRef.current = false;
+      });
+    },
+    [onChange],
+  );
+
   return (
     <div
       className="markdown-editor-root relative w-full"
       style={{ minHeight: "40rem" }}
-      onClick={() => {
+      onKeyDown={handleUndoRedo}
+      onClick={e => {
+        // Handle note link clicks
+        const target = e.target as HTMLElement;
+        const noteLink = target.closest<HTMLAnchorElement>(".note-link");
+        if (noteLink) {
+          e.preventDefault();
+          e.stopPropagation();
+          const noteNum = noteLink.dataset.note;
+          if (noteNum && onNoteClick) {
+            onNoteClick(Number(noteNum));
+          }
+          return;
+        }
         if (focusedIndex === -1 && blockRefs.current.length > 0) {
           const lastIdx = blocks.length - 1;
           blockRefs.current[lastIdx]?.focus();
@@ -1356,29 +2108,73 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         </div>
       )}
       <div className="space-y-[0.4rem]">
-        {blocks.map((block, index) => (
-          <BlockEditor
+        {blocks.map((block, index) => {
+          // 토글 접힘: 접힌 토글 다음의 indent > 0 블록 숨김
+          if (block.indent > 0) {
+            // 부모 토글 중 하나라도 접혀있으면 숨김
+            let checkIndent = block.indent;
+            for (let j = index - 1; j >= 0; j--) {
+              if (blocks[j].indent < checkIndent) {
+                if (blocks[j].type === "toggle" && collapsedToggles.has(blocks[j].id)) {
+                  return null;
+                }
+                checkIndent = blocks[j].indent;
+                if (checkIndent === 0) break;
+              }
+            }
+          }
+          return (
+          <div
             key={block.id}
-            block={block}
-            isFocused={focusedIndex === index}
-            onFocus={() => setFocusedIndex(index)}
-            onChange={raw => handleBlockChange(index, raw)}
-            onEnter={offset => handleEnter(index, offset)}
-            onBackspace={(isEmptyBlock, atStart) => handleBackspace(index, isEmptyBlock, atStart)}
-            onTab={shift => handleTab(index, shift)}
-            onArrowUp={() => handleArrowUp(index)}
-            onArrowDown={() => handleArrowDown(index)}
-            onSlashInput={(filter, anchorEl) => handleSlashInput(index, filter, anchorEl)}
-            onSlashClose={handleSlashClose}
-            isSlashOpen={slashMenu.open && slashMenu.blockIndex === index}
-            onSlashArrowUp={handleSlashArrowUp}
-            onSlashArrowDown={handleSlashArrowDown}
-            onSlashEnter={handleSlashEnter}
-            editorRef={el => {
-              blockRefs.current[index] = el;
-            }}
-          />
-        ))}
+            className={`group/block relative ${dragState.over === index && dragState.dragging !== index ? "border-t-2 border-primary" : ""} ${dragState.dragging === index ? "opacity-40" : ""}`}
+            style={block.indent > 0 ? { marginLeft: `${block.indent * 2.4}rem`, paddingLeft: "1.2rem", borderLeft: "2px solid var(--color-outline-variant, #444)" } : undefined}
+            onDragOver={e => { e.preventDefault(); handleDragOver(index); }}
+            onDrop={e => { e.preventDefault(); handleDrop(index); }}>
+            {/* Drag Handle */}
+            <div
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragEnd={handleDragEnd}
+              className="absolute -left-[2.8rem] top-[0.4rem] hidden h-[2.4rem] w-[2rem] cursor-grab items-center justify-center rounded-[0.25rem] text-on-surface-variant/0 transition-colors group-hover/block:text-on-surface-variant/30 hover:!text-on-surface-variant/60 hover:bg-surface-container group-hover/block:flex active:cursor-grabbing"
+              title="Drag to reorder">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                <circle cx="4" cy="2" r="1.2"/><circle cx="10" cy="2" r="1.2"/>
+                <circle cx="4" cy="7" r="1.2"/><circle cx="10" cy="7" r="1.2"/>
+                <circle cx="4" cy="12" r="1.2"/><circle cx="10" cy="12" r="1.2"/>
+              </svg>
+            </div>
+            <BlockEditor
+              block={block}
+              isFocused={focusedIndex === index}
+              onFocus={() => setFocusedIndex(index)}
+              onChange={raw => handleBlockChange(index, raw)}
+              onEnter={(offset, text) => handleEnter(index, offset, text)}
+              onBackspace={(isEmptyBlock, atStart) => handleBackspace(index, isEmptyBlock, atStart)}
+              onTab={shift => handleTab(index, shift)}
+              onArrowUp={() => handleArrowUp(index)}
+              onArrowDown={() => handleArrowDown(index)}
+              onSlashInput={(filter, anchorEl) => handleSlashInput(index, filter, anchorEl)}
+              onSlashClose={handleSlashClose}
+              isSlashOpen={slashMenu.open && slashMenu.blockIndex === index}
+              onSlashArrowUp={handleSlashArrowUp}
+              onSlashArrowDown={handleSlashArrowDown}
+              onSlashEnter={handleSlashEnter}
+              onNoteLinkInput={(filter, anchorEl) => handleNoteLinkInput(index, filter, anchorEl)}
+              onNoteLinkClose={handleNoteLinkClose}
+              isNoteLinkOpen={noteLinkMenu.open && noteLinkMenu.blockIndex === index}
+              onNoteLinkArrowUp={handleNoteLinkArrowUp}
+              onNoteLinkArrowDown={handleNoteLinkArrowDown}
+              onNoteLinkEnter={handleNoteLinkEnter}
+              onPaste={lines => handlePasteMultiline(index, lines)}
+              onToggle={handleToggle}
+              isToggleOpenProp={!collapsedToggles.has(block.id)}
+              editorRef={el => {
+                blockRefs.current[index] = el;
+              }}
+            />
+          </div>
+          );
+        })}
       </div>
 
       {slashMenu.open && (
@@ -1390,6 +2186,41 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
           onTableSelect={(rows, cols) => applyTableCommand(rows, cols, slashMenu.blockIndex)}
         />
       )}
+
+      {/* Note Link Menu */}
+      {noteLinkMenu.open && notesList.length > 0 && (() => {
+        const filtered = notesList.filter(n =>
+          (n.title ?? "").toLowerCase().includes(noteLinkMenu.filter.toLowerCase()),
+        );
+        if (filtered.length === 0) return null;
+        const selectedIdx = Math.min(noteLinkMenu.selectedIndex, filtered.length - 1);
+        return (
+          <div
+            className="absolute z-50 min-w-[24rem] max-h-[24rem] overflow-y-auto rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-highest shadow-xl"
+            style={{ top: noteLinkMenu.position.top, left: noteLinkMenu.position.left }}>
+            <div className="px-[1.2rem] py-[0.6rem] text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant/50">
+              Link to note
+            </div>
+            {filtered.map((note, idx) => (
+              <div
+                key={note.note_number}
+                className={`flex cursor-pointer items-center gap-[1.2rem] px-[1.6rem] py-[1rem] transition-colors ${
+                  idx === selectedIdx ? "bg-primary/10 text-primary" : "text-on-surface hover:bg-surface-container"
+                }`}
+                onMouseDown={e => {
+                  e.preventDefault();
+                  handleNoteLinkSelect(note);
+                }}>
+                <span className="text-[1.2rem]">📝</span>
+                <div>
+                  <div className="text-[1.3rem] font-medium">{note.title ?? "Untitled"}</div>
+                  <div className="text-[1.1rem] text-on-surface-variant/50">Note #{note.note_number}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       <style>{`
         .inline-code {
@@ -1403,6 +2234,23 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing..." }: M
         .inline-link {
           color: var(--color-primary, #0ea5e9);
           text-decoration: underline;
+        }
+        .note-link {
+          color: var(--color-primary, #0ea5e9);
+          background: color-mix(in srgb, var(--color-primary, #0ea5e9) 10%, transparent);
+          border-radius: 0.25rem;
+          padding: 0 0.4rem;
+          text-decoration: none;
+          cursor: pointer;
+        }
+        .note-link:hover {
+          background: color-mix(in srgb, var(--color-primary, #0ea5e9) 20%, transparent);
+        }
+        .inline-highlight {
+          background: rgba(255, 226, 171, 0.3);
+          border-radius: 0.2rem;
+          padding: 0 0.2rem;
+          color: inherit;
         }
       `}</style>
     </div>

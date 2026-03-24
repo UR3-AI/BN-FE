@@ -7,6 +7,7 @@ export { default as BubbleChartIcon } from "./BubbleChartIcon/BubbleChartIcon";
 export { default as CheckboxBlankIcon } from "./CheckboxBlankIcon/CheckboxBlankIcon";
 export { default as CheckboxIcon } from "./CheckboxIcon/CheckboxIcon";
 export { default as ChecklistIcon } from "./ChecklistIcon/ChecklistIcon";
+export { default as ChevronDownIcon } from "./ChevronDownIcon/ChevronDownIcon";
 export { default as ChevronLeftIcon } from "./ChevronLeftIcon/ChevronLeftIcon";
 export { default as ChevronRightIcon } from "./ChevronRightIcon/ChevronRightIcon";
 export { default as CloseIcon } from "./CloseIcon/CloseIcon";

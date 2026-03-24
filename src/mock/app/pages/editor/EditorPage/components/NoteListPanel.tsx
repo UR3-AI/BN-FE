@@ -1,8 +1,20 @@
 import type { NoteListItem } from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery.type";
+import type { ProjectTreeNode } from "@/mock/lib/apis/queries/projects/useProjectTreeQuery/useProjectTreeQuery.type";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { DeleteIcon, PlusCircleIcon, PushPinIcon, SearchIcon } from "@/mock/app/components/Icons";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DeleteIcon,
+  DescriptionIcon,
+  FolderIcon,
+  PlusCircleIcon,
+  PushPinIcon,
+  SearchIcon,
+} from "@/mock/app/components/Icons";
+import useProjectTreeQuery from "@/mock/lib/apis/queries/projects/useProjectTreeQuery/useProjectTreeQuery";
 
 interface NoteListPanelProps {
   notes: NoteListItem[];
@@ -12,6 +24,10 @@ interface NoteListPanelProps {
   onPinToggle: (noteNumber: number, pinned: boolean) => void;
   onDelete: (noteNumber: number) => void;
   isCreating: boolean;
+  width?: number;
+  onResizePointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onResizePointerMove?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onResizePointerUp?: (e: React.PointerEvent<HTMLDivElement>) => void;
 }
 
 const formatRelativeTime = (dateString: string) => {
@@ -37,27 +53,204 @@ const NoteListPanel = ({
   onPinToggle,
   onDelete,
   isCreating,
+  width,
+  onResizePointerDown,
+  onResizePointerMove,
+  onResizePointerUp,
 }: NoteListPanelProps) => {
+  const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const { data: projectTree } = useProjectTreeQuery();
 
   const filteredNotes = searchQuery
     ? notes.filter(
         n =>
           (n.title ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          n.content_preview.toLowerCase().includes(searchQuery.toLowerCase()),
+          n.content_preview.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          n.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())),
       )
     : notes;
 
   const pinnedNotes = filteredNotes.filter(n => n.is_pinned);
-  const recentNotes = filteredNotes.filter(n => !n.is_pinned);
+  const unpinnedNotes = filteredNotes.filter(n => !n.is_pinned);
+
+  // 프로젝트별 노트 그룹핑 (태그 기반 매칭) — useMemo로 캐싱
+  const { projectNoteMap, uncategorizedNotes } = useMemo(() => {
+    const map = new Map<string, NoteListItem[]>();
+    const assigned = new Set<number>();
+
+    const collectProjectNames = (nodes: ProjectTreeNode[]): string[] => {
+      const names: string[] = [];
+      for (const node of nodes) {
+        names.push(node.name);
+        if (node.children.length > 0) {
+          names.push(...collectProjectNames(node.children));
+        }
+      }
+      return names;
+    };
+
+    if (projectTree?.items) {
+      const allProjectNames = collectProjectNames(projectTree.items);
+      for (const projectName of allProjectNames) {
+        const matchingNotes = unpinnedNotes.filter(note =>
+          note.tags.some(tag => tag.toLowerCase() === projectName.toLowerCase()),
+        );
+        if (matchingNotes.length > 0) {
+          map.set(projectName, matchingNotes);
+          matchingNotes.forEach(n => assigned.add(n.note_number));
+        }
+      }
+    }
+
+    return {
+      projectNoteMap: map,
+      uncategorizedNotes: unpinnedNotes.filter(n => !assigned.has(n.note_number)),
+    };
+  }, [unpinnedNotes, projectTree?.items]);
+
+  const toggleProject = (projectName: string) => {
+    setExpandedProjects(prev => {
+      const next = new Set(prev);
+      if (next.has(projectName)) {
+        next.delete(projectName);
+      } else {
+        next.add(projectName);
+      }
+      return next;
+    });
+  };
+
+  const renderProjectGroup = (node: ProjectTreeNode, depth = 0) => {
+    const projectNotes = projectNoteMap.get(node.name) ?? [];
+    const isExpanded = expandedProjects.has(node.name);
+    const hasContent = projectNotes.length > 0 || node.children.length > 0;
+
+    if (!hasContent && !searchQuery) return null;
+
+    return (
+      <div key={node.id}>
+        <button
+          type="button"
+          onClick={() => toggleProject(node.name)}
+          className="flex w-full items-center gap-[0.6rem] px-[1.6rem] py-[0.8rem] text-left transition-colors hover:bg-surface-container"
+          style={{ paddingLeft: `${1.6 + depth * 1.2}rem` }}>
+          {hasContent ? (
+            isExpanded ? (
+              <ChevronDownIcon
+                size="1.2rem"
+                fill="#9c8f78"
+              />
+            ) : (
+              <ChevronRightIcon
+                size="1.2rem"
+                fill="#9c8f78"
+              />
+            )
+          ) : (
+            <span className="w-[1.2rem]" />
+          )}
+          <FolderIcon
+            size="1.2rem"
+            fill={node.color ?? "#9c8f78"}
+          />
+          <span className="flex-1 truncate text-[1.1rem] font-semibold text-on-surface-variant">
+            {node.name}
+          </span>
+          {projectNotes.length > 0 && (
+            <span className="text-[1rem] text-on-surface-variant/50">{projectNotes.length}</span>
+          )}
+        </button>
+
+        {isExpanded && (
+          <>
+            {projectNotes.map(note => (
+              <NoteItem
+                key={note.note_number}
+                note={note}
+                isSelected={note.note_number === selectedNoteNumber}
+                onSelect={onSelectNote}
+                onPinToggle={onPinToggle}
+                onDelete={onDelete}
+                depth={depth + 1}
+              />
+            ))}
+            {node.children.map(child => renderProjectGroup(child, depth + 1))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  if (collapsed) {
+    return (
+      <>
+        <div className="hidden shrink-0 flex-col items-center gap-[1.6rem] bg-surface-container-lowest py-[1.6rem] px-[0.8rem] lg:flex">
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            className="rounded-[0.25rem] p-[0.4rem] text-on-surface-variant/40 transition-colors hover:bg-surface-container hover:text-on-surface-variant"
+            title="Expand notes">
+            <ChevronRightIcon
+              size="1.6rem"
+              stroke="currentColor"
+            />
+          </button>
+          <button
+            type="button"
+            onClick={onCreateNote}
+            disabled={isCreating}
+            title="New note"
+            className="rounded-[0.25rem] p-[0.4rem] text-on-surface-variant/40 transition-colors hover:bg-surface-container hover:text-primary">
+            <PlusCircleIcon
+              size="2rem"
+              fill="currentColor"
+            />
+          </button>
+          <DescriptionIcon
+            size="2rem"
+            className="text-on-surface-variant/20"
+          />
+          <span className="text-[1rem] font-bold text-on-surface-variant/30" style={{ writingMode: "vertical-rl" }}>
+            NOTES
+          </span>
+        </div>
+        {onResizePointerDown && (
+          <div
+            className="hidden shrink-0 cursor-col-resize touch-none select-none border-r border-outline-variant/10 transition-colors hover:bg-primary/20 active:bg-primary/40 lg:block"
+            style={{ width: "6px" }}
+            onPointerDown={onResizePointerDown}
+            onPointerMove={onResizePointerMove}
+            onPointerUp={onResizePointerUp}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
-    <div className="hidden w-[28rem] shrink-0 flex-col border-r border-outline-variant/10 bg-surface-container-lowest lg:flex">
+    <>
+    <div
+      className="hidden shrink-0 flex-col bg-surface-container-lowest lg:flex"
+      style={{ width: width ? `${width}px` : "28rem" }}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-outline-variant/10 px-[1.6rem] py-[1.6rem]">
-        <h2 className="text-[1.2rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
-          Notes
-        </h2>
+        <div className="flex items-center gap-[0.8rem]">
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            className="rounded-[0.25rem] p-[0.2rem] text-on-surface-variant/40 transition-colors hover:bg-surface-container hover:text-on-surface-variant"
+            title="Collapse notes">
+            <ChevronLeftIcon
+              size="1.4rem"
+              stroke="currentColor"
+            />
+          </button>
+          <h2 className="text-[1.2rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+            Notes
+          </h2>
+        </div>
         <button
           type="button"
           onClick={onCreateNote}
@@ -117,15 +310,27 @@ const NoteListPanel = ({
           </div>
         )}
 
-        {/* Recent Notes */}
-        {recentNotes.length > 0 && (
+        {/* Project Groups */}
+        {projectTree?.items && projectTree.items.length > 0 && (
+          <div>
+            <div className="px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
+              <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+                Projects
+              </span>
+            </div>
+            {projectTree.items.map(node => renderProjectGroup(node))}
+          </div>
+        )}
+
+        {/* Uncategorized */}
+        {uncategorizedNotes.length > 0 && (
           <div>
             <div className="px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
               <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
                 Recent
               </span>
             </div>
-            {recentNotes.map(note => (
+            {uncategorizedNotes.map(note => (
               <NoteItem
                 key={note.note_number}
                 note={note}
@@ -147,6 +352,17 @@ const NoteListPanel = ({
         )}
       </div>
     </div>
+    {/* Resize Handle */}
+    {onResizePointerDown && (
+      <div
+        className="hidden shrink-0 cursor-col-resize touch-none select-none border-r border-outline-variant/10 transition-colors hover:bg-primary/20 active:bg-primary/40 lg:block"
+        style={{ width: "6px" }}
+        onPointerDown={onResizePointerDown}
+        onPointerMove={onResizePointerMove}
+        onPointerUp={onResizePointerUp}
+      />
+    )}
+    </>
   );
 };
 
@@ -156,16 +372,18 @@ interface NoteItemProps {
   onSelect: (noteNumber: number) => void;
   onPinToggle: (noteNumber: number, pinned: boolean) => void;
   onDelete: (noteNumber: number) => void;
+  depth?: number;
 }
 
-const NoteItem = ({ note, isSelected, onSelect, onPinToggle, onDelete }: NoteItemProps) => {
+const NoteItem = ({ note, isSelected, onSelect, onPinToggle, onDelete, depth = 0 }: NoteItemProps) => {
   return (
     <div
-      className={`group relative w-full cursor-pointer px-[1.6rem] py-[1.2rem] text-left transition-colors hover:bg-surface-container ${
+      className={`group relative w-full cursor-pointer py-[1.2rem] pr-[1.6rem] text-left transition-colors hover:bg-surface-container ${
         isSelected
           ? "border-l-2 border-primary bg-surface-container-highest"
           : "border-l-2 border-transparent"
-      }`}>
+      }`}
+      style={{ paddingLeft: `${1.6 + depth * 1.2}rem` }}>
       <button
         type="button"
         onClick={() => onSelect(note.note_number)}
@@ -177,12 +395,24 @@ const NoteItem = ({ note, isSelected, onSelect, onPinToggle, onDelete }: NoteIte
           <span className="text-[1rem] text-on-surface-variant">
             {formatRelativeTime(note.created_at)}
           </span>
-          {note.tags.length > 0 && (
-            <span className="text-[1rem] text-outline">
-              {note.tags.length} tag{note.tags.length > 1 ? "s" : ""}
-            </span>
-          )}
         </div>
+        {/* Tags */}
+        {note.tags.length > 0 && (
+          <div className="mt-[0.4rem] flex flex-wrap gap-[0.4rem]">
+            {note.tags.slice(0, 3).map(tag => (
+              <span
+                key={tag}
+                className="rounded-full bg-surface-container-high px-[0.6rem] py-[0.1rem] text-[0.9rem] text-on-surface-variant/70">
+                #{tag}
+              </span>
+            ))}
+            {note.tags.length > 3 && (
+              <span className="text-[0.9rem] text-on-surface-variant/50">
+                +{note.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </button>
       <div className="absolute top-[1.2rem] right-[1.2rem] flex gap-[0.2rem]">
         <button
