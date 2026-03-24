@@ -28,6 +28,7 @@ const ChatPage = () => {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [message, setMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamPhase, setStreamPhase] = useState<"searching" | "analyzing" | "generating" | "idle">("idle");
   const [displayText, setDisplayText] = useState("");
   const [streamingSources, setStreamingSources] = useState<ChatSourceNote[]>([]);
   const [streamError, setStreamError] = useState("");
@@ -107,6 +108,7 @@ const ChatPage = () => {
     setMessage("");
     setPendingUserMessage(trimmed);
     setIsStreaming(true);
+    setStreamPhase("searching");
     setDisplayText("");
     tokenQueueRef.current = [];
     setStreamingSources([]);
@@ -176,8 +178,11 @@ const ChatPage = () => {
                   break;
                 case "sources":
                   setStreamingSources(data.notes ?? []);
+                  setStreamPhase("analyzing");
                   break;
                 case "token":
+                  // React는 동일 값 setState를 최적화하므로 무조건 호출해도 리렌더 1회만 발생
+                  setStreamPhase("generating");
                   enqueueTokens(data.text);
                   break;
                 case "completed":
@@ -209,6 +214,7 @@ const ChatPage = () => {
       setStreamError(err instanceof Error ? err.message : "Connection failed");
     } finally {
       setIsStreaming(false);
+      setStreamPhase("idle");
       setPendingUserMessage("");
       tokenQueueRef.current = [];
       if (rafRef.current) {
@@ -314,14 +320,35 @@ const ChatPage = () => {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-[3.2rem] py-[3.2rem]">
             {messages.length === 0 && !showStreamingBubble ? (
-              <div className="flex h-full flex-col items-center justify-center gap-[1.6rem]">
-                <SparklesIcon
-                  size="4.8rem"
-                  fill="#ffe2ab"
-                />
-                <p className="text-[1.6rem] text-on-surface-variant">
-                  Start a conversation with your AI assistant
-                </p>
+              <div className="flex h-full flex-col items-center justify-center gap-[2.4rem]">
+                <div className="relative">
+                  <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" style={{ animationDuration: "3s" }} />
+                  <SparklesIcon
+                    size="5.6rem"
+                    fill="#ffe2ab"
+                  />
+                </div>
+                <div className="text-center">
+                  <h3 className="mb-[0.8rem] font-headline text-[2.2rem] font-bold text-on-surface">
+                    AI Assistant
+                  </h3>
+                  <p className="text-[1.4rem] text-on-surface-variant/60">
+                    Ask anything about your notes, get summaries, or explore connections.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-[0.8rem]">
+                  {["Summarize my recent notes", "Find connections between topics", "What are my pending tasks?"].map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => {
+                        setMessage(q);
+                      }}
+                      className="rounded-full border border-outline-variant/20 px-[1.6rem] py-[0.8rem] text-[1.2rem] text-on-surface-variant transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary">
+                      {q}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="mx-auto max-w-[72rem] space-y-[2.4rem]">
@@ -385,8 +412,50 @@ const ChatPage = () => {
                           <span className="inline-block h-[1.4rem] w-[0.2rem] animate-pulse bg-primary" />
                         </p>
                       ) : (
-                        <p className="text-[1.4rem] text-on-surface-variant">Thinking...</p>
+                        <div className="space-y-[1rem]">
+                          {/* Phase: Searching */}
+                          <div className="flex items-center gap-[1rem]">
+                            {streamPhase === "searching" ? (
+                              <div className="h-[1.6rem] w-[1.6rem] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                            ) : (
+                              <span className="text-[1.2rem]">✓</span>
+                            )}
+                            <span className={`text-[1.3rem] ${streamPhase === "searching" ? "text-on-surface" : "text-on-surface-variant/40"}`}>
+                              Searching your notes...
+                            </span>
+                          </div>
+
+                          {/* Phase: Analyzing (sources 도착 후) */}
+                          {(streamPhase === "analyzing" || streamPhase === "generating") && (
+                            <div className="flex items-center gap-[1rem]">
+                              {streamPhase === "analyzing" ? (
+                                <div className="h-[1.6rem] w-[1.6rem] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                              ) : (
+                                <span className="text-[1.2rem]">✓</span>
+                              )}
+                              <span className={`text-[1.3rem] ${streamPhase === "analyzing" ? "text-on-surface" : "text-on-surface-variant/40"}`}>
+                                Analyzing {streamingSources.length} source{streamingSources.length !== 1 ? "s" : ""}...
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Phase: Generating */}
+                          {streamPhase === "generating" && (
+                            <div className="flex items-center gap-[1rem]">
+                              <div className="flex gap-[0.3rem]">
+                                <span className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "0ms" }} />
+                                <span className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "150ms" }} />
+                                <span className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "300ms" }} />
+                              </div>
+                              <span className="text-[1.3rem] text-on-surface">
+                                Generating response...
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       )}
+
+                      {/* Sources */}
                       {streamingSources.length > 0 && (
                         <div className="mt-[0.8rem] flex flex-wrap gap-[0.6rem] border-t border-outline-variant/10 pt-[0.8rem]">
                           {streamingSources.map(src => (
