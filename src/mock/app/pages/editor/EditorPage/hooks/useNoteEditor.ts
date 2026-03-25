@@ -87,26 +87,22 @@ const useNoteEditor = ({
 
   // 노트 전환 시 이전 노트의 pending을 flush 시도
   useEffect(() => {
-    const prevNote = [...unsavedEditsMap.entries()].find(
-      ([num]) => num !== noteNumber,
-    );
-    if (!prevNote) return;
-    const [num, data] = prevNote;
-
-    // busy 상태는 알 수 없으므로 시도하고 실패하면 보관 유지
-    if (data.title || data.content) {
-      api
-        .patch(`/api/v1/notes/${num}`, {
-          title: data.title || undefined,
-          content: data.content || " ",
-        })
-        .then(() => {
-          // 성공 시 맵에서 제거
-          unsavedEditsMap.delete(num);
-        })
-        .catch(() => {
-          // 409 등 실패 시 맵에 유지 → 나중에 재시도
-        });
+    // 현재 노트 이외의 모든 미저장 항목을 flush 시도
+    for (const [num, data] of unsavedEditsMap.entries()) {
+      if (num === noteNumber) continue;
+      if (data.title || data.content) {
+        api
+          .patch(`/api/v1/notes/${num}`, {
+            title: data.title || undefined,
+            content: data.content || " ",
+          })
+          .then(() => {
+            unsavedEditsMap.delete(num);
+          })
+          .catch(() => {
+            // 409 등 실패 시 맵에 유지 → 나중에 재시도
+          });
+      }
     }
   }, [syncedNoteNumber, noteNumber]);
 
@@ -124,6 +120,8 @@ const useNoteEditor = ({
         title: value.title,
         content: value.content,
       });
+      // 이전 재시도 타이머 정리
+      if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         if (pendingRef.current) {

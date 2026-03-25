@@ -128,12 +128,14 @@ const BlockEditorInner = ({
   const handleBlur = () => {
     const el = divRef.current;
     if (!el) return;
-    // block.raw 기준으로 재렌더 (htmlToMarkdownInline 경유하지 않아 이중 인코딩 방지)
-    const escaped = escapeHtml(displayText);
+    // ref로 최신 값 참조 (stale closure 방지)
+    const currentDisplayText = displayTextRef.current;
+    const currentType = blockRef.current.type;
+    const escaped = escapeHtml(currentDisplayText);
     const html =
-      block.type === "hr"
+      currentType === "hr"
         ? ""
-        : block.type === "code"
+        : currentType === "code"
           ? escaped
           : applyInlineFormatting(escaped);
     if (el.innerHTML !== html) {
