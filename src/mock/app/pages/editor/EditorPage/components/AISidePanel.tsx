@@ -68,6 +68,8 @@ const buildMiniGraph = (
   return { nodes: [centerNode, ...entityNodes], edges };
 };
 
+import type { NoteStreamPhase as ProcessingPhase } from "@/mock/lib/hooks/useNoteStream/useNoteStream";
+
 interface AISidePanelProps {
   summary: string | null;
   content: string | null;
@@ -76,7 +78,15 @@ interface AISidePanelProps {
   relatedNotes: RelatedNote[];
   noteTitle: string | null;
   isProcessing: boolean;
+  processingPhase?: ProcessingPhase;
 }
+
+const STEPS: { key: ProcessingPhase; label: string; doneWhen: ProcessingPhase[] }[] = [
+  { key: "processing", label: "Analyzing content", doneWhen: ["summary_ready", "actions_ready", "entities_ready", "completed"] },
+  { key: "summary_ready", label: "Extracting summary & tags", doneWhen: ["actions_ready", "entities_ready", "completed"] },
+  { key: "actions_ready", label: "Extracting action items", doneWhen: ["entities_ready", "completed"] },
+  { key: "entities_ready", label: "Building knowledge graph", doneWhen: ["completed"] },
+];
 
 const AISidePanel = ({
   summary,
@@ -86,6 +96,7 @@ const AISidePanel = ({
   relatedNotes,
   noteTitle,
   isProcessing,
+  processingPhase = "idle",
 }: AISidePanelProps) => {
   const isResearch =
     tags.includes("research") || tags.includes("auto-generated");
@@ -100,15 +111,54 @@ const AISidePanel = ({
         <h2 className="font-headline text-[1.4rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
           AI Synthesis
         </h2>
-        {isProcessing && (
+        {isProcessing && processingPhase !== "idle" && processingPhase !== "completed" && (
           <div className="flex items-center gap-[0.8rem] rounded-[0.125rem] bg-primary/10 px-[0.8rem] py-[0.4rem]">
-            <div className="h-[0.6rem] w-[0.6rem] animate-pulse rounded-full bg-primary" />
+            <div className="h-[0.6rem] w-[0.6rem] animate-spin rounded-full border border-primary/30 border-t-primary" />
             <span className="text-[1rem] font-bold uppercase tracking-tighter text-primary">
-              Processing
+              AI Processing
             </span>
           </div>
         )}
       </div>
+
+      {/* Processing Steps */}
+      {isProcessing && processingPhase !== "idle" && processingPhase !== "completed" && (
+        <div className="mb-[2.4rem] rounded-[0.25rem] border border-outline-variant/10 bg-surface-container-highest/50 p-[1.6rem]">
+          <div className="space-y-[1rem]">
+            {STEPS.map(step => {
+              const isDone = step.doneWhen.includes(processingPhase);
+              const isActive = step.key === processingPhase || (step.key === "processing" && (processingPhase === "pending" || processingPhase === "processing"));
+              if (!isDone && !isActive) {
+                // 아직 도달하지 않은 단계
+                return (
+                  <div
+                    key={step.key}
+                    className="flex items-center gap-[1rem]">
+                    <div className="h-[1.4rem] w-[1.4rem] rounded-full border border-outline-variant/20" />
+                    <span className="text-[1.1rem] text-on-surface-variant/30">{step.label}</span>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={step.key}
+                  className="flex items-center gap-[1rem]">
+                  {isDone ? (
+                    <div className="flex h-[1.4rem] w-[1.4rem] items-center justify-center rounded-full bg-primary/20">
+                      <span className="text-[0.8rem] text-primary">✓</span>
+                    </div>
+                  ) : (
+                    <div className="h-[1.4rem] w-[1.4rem] animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                  )}
+                  <span className={`text-[1.1rem] ${isDone ? "text-on-surface-variant/50" : "text-on-surface font-medium"}`}>
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Focus Plate: Summary */}
       <div className="mb-[2.4rem] rounded-[0.25rem] border-b border-outline-variant/20 bg-surface-container-highest p-[2.4rem]">

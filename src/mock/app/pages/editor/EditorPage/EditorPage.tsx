@@ -19,6 +19,7 @@ import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDe
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
 import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 import useNoteStream from "@/mock/lib/hooks/useNoteStream/useNoteStream";
+import type { NoteStreamPhase } from "@/mock/lib/hooks/useNoteStream/useNoteStream";
 import { useQueryClient } from "@tanstack/react-query";
 
 import AISidePanel from "./components/AISidePanel";
@@ -39,7 +40,8 @@ const EditorPage = () => {
   const deleteAttachmentMutation = useDeleteAttachmentMutation();
   const noteExport = useNoteExport();
   const attachmentDownload = useAttachmentDownload();
-  const { subscribe: subscribeNoteStream } = useNoteStream();
+  const [processingPhase, setProcessingPhase] = useState<NoteStreamPhase>("idle");
+  const { subscribe: subscribeNoteStream } = useNoteStream(setProcessingPhase);
   const [tagInput, setTagInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [noteListWidth, setNoteListWidth] = useState(280);
@@ -454,6 +456,7 @@ const EditorPage = () => {
           relatedNotes={relatedNotes}
           noteTitle={noteDetail.title}
           isProcessing={isProcessing}
+          processingPhase={processingPhase}
         />
       }>
       <div className="flex flex-1">

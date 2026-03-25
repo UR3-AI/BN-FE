@@ -3,9 +3,22 @@ import { useCallback, useEffect, useRef } from "react";
 import useAuthStore from "@lib/stores/useAuthStore/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
 
-const useNoteStream = () => {
+export type NoteStreamPhase =
+  | "idle"
+  | "pending"
+  | "processing"
+  | "summary_ready"
+  | "actions_ready"
+  | "entities_ready"
+  | "completed"
+  | "failed";
+
+const useNoteStream = (onPhaseChange?: (phase: NoteStreamPhase) => void) => {
   const queryClient = useQueryClient();
   const abortRef = useRef<AbortController | null>(null);
+  // ref로 감싸서 subscribe의 참조 안정성 보장
+  const phaseRef = useRef(onPhaseChange);
+  phaseRef.current = onPhaseChange;
 
   useEffect(() => {
     return () => {
@@ -41,14 +54,14 @@ const useNoteStream = () => {
               switch (currentEvent) {
                 case "pending":
                 case "processing":
-                  // 상태 변화 반영 → isBusy 갱신
+                  phaseRef.current?.(currentEvent);
                   queryClient.invalidateQueries({
                     queryKey: ["notes", "detail", noteNumber],
                   });
                   break;
 
                 case "summary_ready":
-                  // 요약/태그 즉시 표시 + processing_status 갱신
+                  phaseRef.current?.("summary_ready");
                   queryClient.invalidateQueries({
                     queryKey: ["notes", "detail", noteNumber],
                   });
@@ -58,7 +71,7 @@ const useNoteStream = () => {
                   break;
 
                 case "actions_ready":
-                  // 액션아이템 즉시 표시
+                  phaseRef.current?.("actions_ready");
                   queryClient.invalidateQueries({
                     queryKey: ["notes", "actions", noteNumber],
                   });
@@ -68,7 +81,7 @@ const useNoteStream = () => {
                   break;
 
                 case "entities_ready":
-                  // 그래프 즉시 표시
+                  phaseRef.current?.("entities_ready");
                   queryClient.invalidateQueries({
                     queryKey: ["notes", "related", noteNumber],
                   });
@@ -79,7 +92,7 @@ const useNoteStream = () => {
 
                 case "completed":
                 case "failed":
-                  // 전체 갱신 → isBusy=false, 미저장 PATCH 허용
+                  phaseRef.current?.(currentEvent as NoteStreamPhase);
                   queryClient.invalidateQueries({ queryKey: ["notes"] });
                   currentEvent = "";
                   return true;
@@ -102,6 +115,7 @@ const useNoteStream = () => {
               remaining.push("");
               if (processLines(remaining)) break;
             }
+            phaseRef.current?.("completed");
             queryClient.invalidateQueries({ queryKey: ["notes"] });
             break;
           }
