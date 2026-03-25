@@ -42,25 +42,39 @@ const useNoteStream = () => {
                 case "pending":
                 case "processing":
                   // 상태 변화 반영 → isBusy 갱신
-                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "detail", noteNumber],
+                  });
                   break;
 
                 case "summary_ready":
                   // 요약/태그 즉시 표시 + processing_status 갱신
-                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
-                  queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "detail", noteNumber],
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "list"],
+                  });
                   break;
 
                 case "actions_ready":
                   // 액션아이템 즉시 표시
-                  queryClient.invalidateQueries({ queryKey: ["notes", "actions", noteNumber] });
-                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "actions", noteNumber],
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "detail", noteNumber],
+                  });
                   break;
 
                 case "entities_ready":
                   // 그래프 즉시 표시
-                  queryClient.invalidateQueries({ queryKey: ["notes", "related", noteNumber] });
-                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "related", noteNumber],
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["notes", "detail", noteNumber],
+                  });
                   break;
 
                 case "completed":

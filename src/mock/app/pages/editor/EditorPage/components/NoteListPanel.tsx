@@ -1,6 +1,3 @@
-import type { NoteListItem } from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery.type";
-import type { ProjectTreeNode } from "@/mock/lib/apis/queries/projects/useProjectTreeQuery/useProjectTreeQuery.type";
-
 import { useMemo, useState } from "react";
 
 import {
@@ -14,7 +11,9 @@ import {
   PushPinIcon,
   SearchIcon,
 } from "@/mock/app/components/Icons";
+import type { NoteListItem } from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery.type";
 import useProjectTreeQuery from "@/mock/lib/apis/queries/projects/useProjectTreeQuery/useProjectTreeQuery";
+import type { ProjectTreeNode } from "@/mock/lib/apis/queries/projects/useProjectTreeQuery/useProjectTreeQuery.type";
 
 interface NoteListPanelProps {
   notes: NoteListItem[];
@@ -60,7 +59,9 @@ const NoteListPanel = ({
 }: NoteListPanelProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    new Set(),
+  );
   const { data: projectTree } = useProjectTreeQuery();
 
   const filteredNotes = searchQuery
@@ -95,7 +96,9 @@ const NoteListPanel = ({
       const allProjectNames = collectProjectNames(projectTree.items);
       for (const projectName of allProjectNames) {
         const matchingNotes = unpinnedNotes.filter(note =>
-          note.tags.some(tag => tag.toLowerCase() === projectName.toLowerCase()),
+          note.tags.some(
+            tag => tag.toLowerCase() === projectName.toLowerCase(),
+          ),
         );
         if (matchingNotes.length > 0) {
           map.set(projectName, matchingNotes);
@@ -106,7 +109,9 @@ const NoteListPanel = ({
 
     return {
       projectNoteMap: map,
-      uncategorizedNotes: unpinnedNotes.filter(n => !assigned.has(n.note_number)),
+      uncategorizedNotes: unpinnedNotes.filter(
+        n => !assigned.has(n.note_number),
+      ),
     };
   }, [unpinnedNotes, projectTree?.items]);
 
@@ -159,7 +164,9 @@ const NoteListPanel = ({
             {node.name}
           </span>
           {projectNotes.length > 0 && (
-            <span className="text-[1rem] text-on-surface-variant/50">{projectNotes.length}</span>
+            <span className="text-[1rem] text-on-surface-variant/50">
+              {projectNotes.length}
+            </span>
           )}
         </button>
 
@@ -212,7 +219,9 @@ const NoteListPanel = ({
             size="2rem"
             className="text-on-surface-variant/20"
           />
-          <span className="text-[1rem] font-bold text-on-surface-variant/30" style={{ writingMode: "vertical-rl" }}>
+          <span
+            className="text-[1rem] font-bold text-on-surface-variant/30"
+            style={{ writingMode: "vertical-rl" }}>
             NOTES
           </span>
         </div>
@@ -231,137 +240,137 @@ const NoteListPanel = ({
 
   return (
     <>
-    <div
-      className="hidden shrink-0 flex-col bg-surface-container-lowest lg:flex"
-      style={{ width: width ? `${width}px` : "28rem" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-outline-variant/10 px-[1.6rem] py-[1.6rem]">
-        <div className="flex items-center gap-[0.8rem]">
+      <div
+        className="hidden shrink-0 flex-col bg-surface-container-lowest lg:flex"
+        style={{ width: width ? `${width}px` : "28rem" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-outline-variant/10 px-[1.6rem] py-[1.6rem]">
+          <div className="flex items-center gap-[0.8rem]">
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              className="rounded-[0.25rem] p-[0.2rem] text-on-surface-variant/40 transition-colors hover:bg-surface-container hover:text-on-surface-variant"
+              title="Collapse notes">
+              <ChevronLeftIcon
+                size="1.4rem"
+                stroke="currentColor"
+              />
+            </button>
+            <h2 className="text-[1.2rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+              Notes
+            </h2>
+          </div>
           <button
             type="button"
-            onClick={() => setCollapsed(true)}
-            className="rounded-[0.25rem] p-[0.2rem] text-on-surface-variant/40 transition-colors hover:bg-surface-container hover:text-on-surface-variant"
-            title="Collapse notes">
-            <ChevronLeftIcon
+            onClick={onCreateNote}
+            disabled={isCreating}
+            className="flex items-center gap-[0.6rem] rounded-[0.375rem] bg-primary px-[1.2rem] py-[0.6rem] text-[1.1rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
+            <PlusCircleIcon
               size="1.4rem"
-              stroke="currentColor"
+              fill="currentColor"
             />
+            {isCreating ? "Creating..." : "New"}
           </button>
-          <h2 className="text-[1.2rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
-            Notes
-          </h2>
         </div>
-        <button
-          type="button"
-          onClick={onCreateNote}
-          disabled={isCreating}
-          className="flex items-center gap-[0.6rem] rounded-[0.375rem] bg-primary px-[1.2rem] py-[0.6rem] text-[1.1rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
-          <PlusCircleIcon
-            size="1.4rem"
-            fill="currentColor"
-          />
-          {isCreating ? "Creating..." : "New"}
-        </button>
-      </div>
 
-      {/* Search */}
-      <div className="border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-[1rem]">
-            <SearchIcon
-              size="1.4rem"
-              className="text-on-surface-variant/50"
+        {/* Search */}
+        <div className="border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-[1rem]">
+              <SearchIcon
+                size="1.4rem"
+                className="text-on-surface-variant/50"
+              />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search notes..."
+              className="w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-low py-[0.6rem] pl-[3.2rem] pr-[1.2rem] text-[1.2rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
             />
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search notes..."
-            className="w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-low py-[0.6rem] pl-[3.2rem] pr-[1.2rem] text-[1.2rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
-          />
+        </div>
+
+        {/* Note List */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Pinned Notes */}
+          {pinnedNotes.length > 0 && (
+            <div>
+              <div className="flex items-center gap-[0.6rem] px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
+                <PushPinIcon
+                  size="1.2rem"
+                  fill="#9c8f78"
+                />
+                <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+                  Pinned
+                </span>
+              </div>
+              {pinnedNotes.map(note => (
+                <NoteItem
+                  key={note.note_number}
+                  note={note}
+                  isSelected={note.note_number === selectedNoteNumber}
+                  onSelect={onSelectNote}
+                  onPinToggle={onPinToggle}
+                  onDelete={onDelete}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Project Groups */}
+          {projectTree?.items && projectTree.items.length > 0 && (
+            <div>
+              <div className="px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
+                <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+                  Projects
+                </span>
+              </div>
+              {projectTree.items.map(node => renderProjectGroup(node))}
+            </div>
+          )}
+
+          {/* Uncategorized */}
+          {uncategorizedNotes.length > 0 && (
+            <div>
+              <div className="px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
+                <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+                  Recent
+                </span>
+              </div>
+              {uncategorizedNotes.map(note => (
+                <NoteItem
+                  key={note.note_number}
+                  note={note}
+                  isSelected={note.note_number === selectedNoteNumber}
+                  onSelect={onSelectNote}
+                  onPinToggle={onPinToggle}
+                  onDelete={onDelete}
+                />
+              ))}
+            </div>
+          )}
+
+          {filteredNotes.length === 0 && (
+            <div className="flex flex-col items-center justify-center px-[1.6rem] py-[4.8rem]">
+              <p className="text-[1.2rem] text-on-surface-variant">
+                {searchQuery ? "No matching notes" : "No notes yet"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Note List */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Pinned Notes */}
-        {pinnedNotes.length > 0 && (
-          <div>
-            <div className="flex items-center gap-[0.6rem] px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
-              <PushPinIcon
-                size="1.2rem"
-                fill="#9c8f78"
-              />
-              <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
-                Pinned
-              </span>
-            </div>
-            {pinnedNotes.map(note => (
-              <NoteItem
-                key={note.note_number}
-                note={note}
-                isSelected={note.note_number === selectedNoteNumber}
-                onSelect={onSelectNote}
-                onPinToggle={onPinToggle}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Project Groups */}
-        {projectTree?.items && projectTree.items.length > 0 && (
-          <div>
-            <div className="px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
-              <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
-                Projects
-              </span>
-            </div>
-            {projectTree.items.map(node => renderProjectGroup(node))}
-          </div>
-        )}
-
-        {/* Uncategorized */}
-        {uncategorizedNotes.length > 0 && (
-          <div>
-            <div className="px-[1.6rem] pt-[1.6rem] pb-[0.8rem]">
-              <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
-                Recent
-              </span>
-            </div>
-            {uncategorizedNotes.map(note => (
-              <NoteItem
-                key={note.note_number}
-                note={note}
-                isSelected={note.note_number === selectedNoteNumber}
-                onSelect={onSelectNote}
-                onPinToggle={onPinToggle}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        )}
-
-        {filteredNotes.length === 0 && (
-          <div className="flex flex-col items-center justify-center px-[1.6rem] py-[4.8rem]">
-            <p className="text-[1.2rem] text-on-surface-variant">
-              {searchQuery ? "No matching notes" : "No notes yet"}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-    {/* Resize Handle */}
-    {onResizePointerDown && (
-      <div
-        className="hidden shrink-0 cursor-col-resize touch-none select-none border-r border-outline-variant/10 transition-colors hover:bg-primary/20 active:bg-primary/40 lg:block"
-        style={{ width: "6px" }}
-        onPointerDown={onResizePointerDown}
-        onPointerMove={onResizePointerMove}
-        onPointerUp={onResizePointerUp}
-      />
-    )}
+      {/* Resize Handle */}
+      {onResizePointerDown && (
+        <div
+          className="hidden shrink-0 cursor-col-resize touch-none select-none border-r border-outline-variant/10 transition-colors hover:bg-primary/20 active:bg-primary/40 lg:block"
+          style={{ width: "6px" }}
+          onPointerDown={onResizePointerDown}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={onResizePointerUp}
+        />
+      )}
     </>
   );
 };
@@ -375,7 +384,14 @@ interface NoteItemProps {
   depth?: number;
 }
 
-const NoteItem = ({ note, isSelected, onSelect, onPinToggle, onDelete, depth = 0 }: NoteItemProps) => {
+const NoteItem = ({
+  note,
+  isSelected,
+  onSelect,
+  onPinToggle,
+  onDelete,
+  depth = 0,
+}: NoteItemProps) => {
   return (
     <div
       className={`group relative w-full cursor-pointer py-[1.2rem] pr-[1.6rem] text-left transition-colors hover:bg-surface-container ${

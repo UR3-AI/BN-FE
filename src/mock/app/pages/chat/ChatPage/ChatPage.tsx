@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import { useNavigate } from "react-router-dom";
 
 import { DeleteIcon, SparklesIcon } from "@/mock/app/components/Icons";
@@ -28,9 +27,13 @@ const ChatPage = () => {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [message, setMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamPhase, setStreamPhase] = useState<"searching" | "analyzing" | "generating" | "idle">("idle");
+  const [streamPhase, setStreamPhase] = useState<
+    "searching" | "analyzing" | "generating" | "idle"
+  >("idle");
   const [displayText, setDisplayText] = useState("");
-  const [streamingSources, setStreamingSources] = useState<ChatSourceNote[]>([]);
+  const [streamingSources, setStreamingSources] = useState<ChatSourceNote[]>(
+    [],
+  );
   const [streamError, setStreamError] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,7 +42,8 @@ const ChatPage = () => {
   const rafRef = useRef<number>(0);
   const lastFrameRef = useRef(0);
 
-  const { data: sessionsData, isLoading: isSessionsLoading } = useChatSessionsQuery();
+  const { data: sessionsData, isLoading: isSessionsLoading } =
+    useChatSessionsQuery();
   const { data: sessionDetail } = useChatSessionDetailQuery(selectedSessionId);
   const deleteMutation = useDeleteChatSessionMutation();
 
@@ -124,11 +128,16 @@ const ChatPage = () => {
       const { expiresAt, refreshToken } = useAuthStore.getState();
       if (expiresAt && Date.now() > expiresAt - 60_000 && refreshToken) {
         try {
-          const { default: refreshTokenAsync } = await import(
-            "@lib/apis/services/auth/refreshTokenAsync/refreshTokenAsync"
-          );
+          const { default: refreshTokenAsync } =
+            await import("@lib/apis/services/auth/refreshTokenAsync/refreshTokenAsync");
           const refreshed = await refreshTokenAsync(refreshToken);
-          useAuthStore.getState().setTokens(refreshed.access_token, refreshed.refresh_token, refreshed.expires_in);
+          useAuthStore
+            .getState()
+            .setTokens(
+              refreshed.access_token,
+              refreshed.refresh_token,
+              refreshed.expires_in,
+            );
           token = refreshed.access_token;
         } catch {
           // Token refresh failed — proceed with current token
@@ -188,12 +197,16 @@ const ChatPage = () => {
                 case "completed":
                   setPendingUserMessage("");
                   // 큐에 남은 토큰을 즉시 flush한 뒤, 서버 데이터로 교체 (깜빡임 방지)
-                  setDisplayText(prev => prev + tokenQueueRef.current.splice(0).join(""));
+                  setDisplayText(
+                    prev => prev + tokenQueueRef.current.splice(0).join(""),
+                  );
                   if (rafRef.current) {
                     cancelAnimationFrame(rafRef.current);
                     rafRef.current = 0;
                   }
-                  await queryClient.refetchQueries({ queryKey: ["chat"] }).catch(() => {});
+                  await queryClient
+                    .refetchQueries({ queryKey: ["chat"] })
+                    .catch(() => {});
                   setDisplayText("");
                   setStreamingSources([]);
                   break;
@@ -291,7 +304,8 @@ const ChatPage = () => {
                         {formatTimeAgo(session.updated_at)}
                       </span>
                       <span className="text-[1rem] text-outline">
-                        {session.message_count} message{session.message_count !== 1 ? "s" : ""}
+                        {session.message_count} message
+                        {session.message_count !== 1 ? "s" : ""}
                       </span>
                     </div>
                   </button>
@@ -321,7 +335,10 @@ const ChatPage = () => {
             {messages.length === 0 && !showStreamingBubble ? (
               <div className="flex h-full flex-col items-center justify-center gap-[2.4rem]">
                 <div className="relative">
-                  <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" style={{ animationDuration: "3s" }} />
+                  <div
+                    className="absolute inset-0 animate-ping rounded-full bg-primary/10"
+                    style={{ animationDuration: "3s" }}
+                  />
                   <SparklesIcon
                     size="5.6rem"
                     fill="#ffe2ab"
@@ -332,11 +349,16 @@ const ChatPage = () => {
                     AI Assistant
                   </h3>
                   <p className="text-[1.4rem] text-on-surface-variant/60">
-                    Ask anything about your notes, get summaries, or explore connections.
+                    Ask anything about your notes, get summaries, or explore
+                    connections.
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-[0.8rem]">
-                  {["Summarize my recent notes", "Find connections between topics", "What are my pending tasks?"].map(q => (
+                  {[
+                    "Summarize my recent notes",
+                    "Find connections between topics",
+                    "What are my pending tasks?",
+                  ].map(q => (
                     <button
                       key={q}
                       type="button"
@@ -370,16 +392,23 @@ const ChatPage = () => {
                             <button
                               type="button"
                               key={src.note_number}
-                              onClick={() => navigate("/", { state: { noteNumber: src.note_number } })}
+                              onClick={() =>
+                                navigate("/", {
+                                  state: { noteNumber: src.note_number },
+                                })
+                              }
                               className="cursor-pointer rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary transition-colors hover:bg-primary/20 hover:text-primary">
-                              Note #{src.note_number}{src.title ? ` — ${src.title}` : ""}
+                              Note #{src.note_number}
+                              {src.title ? ` — ${src.title}` : ""}
                             </button>
                           ))}
                         </div>
                       )}
                       <span
                         className={`mt-[0.4rem] block text-[1rem] ${
-                          msg.role === "user" ? "text-on-primary/60" : "text-outline"
+                          msg.role === "user"
+                            ? "text-on-primary/60"
+                            : "text-outline"
                         }`}>
                         {formatTimeAgo(msg.created_at)}
                       </span>
@@ -419,21 +448,25 @@ const ChatPage = () => {
                             ) : (
                               <span className="text-[1.2rem]">✓</span>
                             )}
-                            <span className={`text-[1.3rem] ${streamPhase === "searching" ? "text-on-surface" : "text-on-surface-variant/40"}`}>
+                            <span
+                              className={`text-[1.3rem] ${streamPhase === "searching" ? "text-on-surface" : "text-on-surface-variant/40"}`}>
                               Searching your notes...
                             </span>
                           </div>
 
                           {/* Phase: Analyzing (sources 도착 후) */}
-                          {(streamPhase === "analyzing" || streamPhase === "generating") && (
+                          {(streamPhase === "analyzing" ||
+                            streamPhase === "generating") && (
                             <div className="flex items-center gap-[1rem]">
                               {streamPhase === "analyzing" ? (
                                 <div className="h-[1.6rem] w-[1.6rem] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
                               ) : (
                                 <span className="text-[1.2rem]">✓</span>
                               )}
-                              <span className={`text-[1.3rem] ${streamPhase === "analyzing" ? "text-on-surface" : "text-on-surface-variant/40"}`}>
-                                Analyzing {streamingSources.length} source{streamingSources.length !== 1 ? "s" : ""}...
+                              <span
+                                className={`text-[1.3rem] ${streamPhase === "analyzing" ? "text-on-surface" : "text-on-surface-variant/40"}`}>
+                                Analyzing {streamingSources.length} source
+                                {streamingSources.length !== 1 ? "s" : ""}...
                               </span>
                             </div>
                           )}
@@ -442,9 +475,18 @@ const ChatPage = () => {
                           {streamPhase === "generating" && (
                             <div className="flex items-center gap-[1rem]">
                               <div className="flex gap-[0.3rem]">
-                                <span className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "0ms" }} />
-                                <span className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "150ms" }} />
-                                <span className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60" style={{ animationDelay: "300ms" }} />
+                                <span
+                                  className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60"
+                                  style={{ animationDelay: "0ms" }}
+                                />
+                                <span
+                                  className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60"
+                                  style={{ animationDelay: "150ms" }}
+                                />
+                                <span
+                                  className="inline-block h-[0.6rem] w-[0.6rem] animate-bounce rounded-full bg-primary/60"
+                                  style={{ animationDelay: "300ms" }}
+                                />
                               </div>
                               <span className="text-[1.3rem] text-on-surface">
                                 Generating response...
@@ -461,9 +503,14 @@ const ChatPage = () => {
                             <button
                               type="button"
                               key={src.note_number}
-                              onClick={() => navigate("/", { state: { noteNumber: src.note_number } })}
+                              onClick={() =>
+                                navigate("/", {
+                                  state: { noteNumber: src.note_number },
+                                })
+                              }
                               className="cursor-pointer rounded-full bg-surface-container-highest px-[0.8rem] py-[0.2rem] text-[1rem] text-secondary transition-colors hover:bg-primary/20 hover:text-primary">
-                              Note #{src.note_number}{src.title ? ` — ${src.title}` : ""}
+                              Note #{src.note_number}
+                              {src.title ? ` — ${src.title}` : ""}
                             </button>
                           ))}
                         </div>
@@ -495,7 +542,12 @@ const ChatPage = () => {
                 placeholder="Type a message..."
                 rows={1}
                 className="flex-1 resize-none rounded-[0.5rem] border border-outline-variant/20 bg-surface-container-low px-[1.6rem] py-[1.2rem] text-[1.4rem] text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
-                style={{ fieldSizing: "content", maxHeight: "16rem" } as React.CSSProperties}
+                style={
+                  {
+                    fieldSizing: "content",
+                    maxHeight: "16rem",
+                  } as React.CSSProperties
+                }
               />
               <button
                 type="button"
