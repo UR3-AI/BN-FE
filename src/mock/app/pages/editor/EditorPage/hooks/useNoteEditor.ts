@@ -188,14 +188,22 @@ const useNoteEditor = ({
     }, DEBOUNCE_MS);
   };
 
+  // ref로 최신 값 추적 (stale closure 방지)
+  const titleRef = useRef(title);
+  titleRef.current = title;
+  const contentRef = useRef(content);
+  contentRef.current = content;
+
   const onTitleChange = (value: string) => {
     setTitle(value);
-    scheduleSave(value, content);
+    titleRef.current = value;
+    scheduleSave(value, contentRef.current);
   };
 
   const onContentChange = (value: string) => {
     setContent(value);
-    scheduleSave(title, value);
+    contentRef.current = value;
+    scheduleSave(titleRef.current, value);
   };
 
   const flush = () => {

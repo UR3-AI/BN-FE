@@ -225,13 +225,17 @@ const ChatPage = () => {
       if (controller.signal.aborted) return;
       setStreamError(err instanceof Error ? err.message : "Connection failed");
     } finally {
-      setIsStreaming(false);
-      setStreamPhase("idle");
-      setPendingUserMessage("");
-      tokenQueueRef.current = [];
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
+      // 현재 controller가 여전히 활성 요청인 경우에만 상태 정리
+      // (abort 후 재전송 시 이전 finally가 새 요청 상태를 오염하지 않도록)
+      if (abortRef.current === controller || abortRef.current === null) {
+        setIsStreaming(false);
+        setStreamPhase("idle");
+        setPendingUserMessage("");
+        tokenQueueRef.current = [];
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = 0;
+        }
       }
     }
   };

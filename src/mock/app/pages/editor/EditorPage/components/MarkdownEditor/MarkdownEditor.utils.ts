@@ -88,7 +88,7 @@ export const sanitizeUrl = (url: string): string => {
   if (
     lower.startsWith("http://") ||
     lower.startsWith("https://") ||
-    lower.startsWith("/")
+    (lower.startsWith("/") && !lower.startsWith("//"))
   ) {
     return trimmed;
   }

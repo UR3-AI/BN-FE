@@ -465,6 +465,10 @@ const EditorPage = () => {
           onPinToggle={handlePinToggle}
           onDelete={handleDeleteNote}
           isCreating={createNoteMutation.isPending}
+          width={noteListWidth}
+          onResizePointerDown={onNoteListResizeDown}
+          onResizePointerMove={onNoteListResizeMove}
+          onResizePointerUp={onNoteListResizeUp}
         />
 
         {/* Distraction-free Writing Area */}
