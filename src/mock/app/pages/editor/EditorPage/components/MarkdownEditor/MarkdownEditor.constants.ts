@@ -48,7 +48,12 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "todo", label: "To-do", icon: "☐", description: "Checkbox item" },
   { id: "blockquote", label: "Quote", icon: "❝", description: "Quote block" },
   { id: "callout", label: "Callout", icon: "💡", description: "Callout block" },
-  { id: "toggle", label: "Toggle", icon: "▶", description: "Collapsible block" },
+  {
+    id: "toggle",
+    label: "Toggle",
+    icon: "▶",
+    description: "Collapsible block",
+  },
   { id: "code", label: "Code Block", icon: "</>", description: "Code block" },
   { id: "hr", label: "Divider", icon: "—", description: "Horizontal rule" },
 ];

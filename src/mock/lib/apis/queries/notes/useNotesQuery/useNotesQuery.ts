@@ -1,9 +1,11 @@
+import { api } from "@lib/apis/axios";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
 import notesKeys from "../keys";
-import type { NoteListResponse, UseNotesQueryParams } from "./useNotesQuery.type";
+import type {
+  NoteListResponse,
+  UseNotesQueryParams,
+} from "./useNotesQuery.type";
 
 const fetchNotes = async (params: UseNotesQueryParams) => {
   const response = await api.get<NoteListResponse>("/api/v1/notes", { params });

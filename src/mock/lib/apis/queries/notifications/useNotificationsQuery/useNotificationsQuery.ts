@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import notificationKeys from "../keys";
 import type {
@@ -9,7 +8,10 @@ import type {
 } from "./useNotificationsQuery.type";
 
 const fetchNotifications = async (params: UseNotificationsQueryParams) => {
-  const response = await api.get<NotificationListResponse>("/api/v1/notifications", { params });
+  const response = await api.get<NotificationListResponse>(
+    "/api/v1/notifications",
+    { params },
+  );
   return response.data;
 };
 

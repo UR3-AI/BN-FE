@@ -1,24 +1,23 @@
-import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
-import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
-
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { CloseIcon, DeleteIcon, LinkIcon } from "@/mock/app/components/Icons";
 import { GlobalLayout } from "@/mock/app/components/layout";
 import useAttachmentDownload from "@/mock/lib/apis/mutations/notes/useAttachmentDownload/useAttachmentDownload";
+import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
 import useDeleteAttachmentMutation from "@/mock/lib/apis/mutations/notes/useDeleteAttachmentMutation/useDeleteAttachmentMutation";
+import useDeleteNoteMutation from "@/mock/lib/apis/mutations/notes/useDeleteNoteMutation/useDeleteNoteMutation";
 import useNoteExport from "@/mock/lib/apis/mutations/notes/useNoteExport/useNoteExport";
+import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
+import useReprocessNoteMutation from "@/mock/lib/apis/mutations/notes/useReprocessNoteMutation/useReprocessNoteMutation";
 import useUploadAttachmentMutation from "@/mock/lib/apis/mutations/notes/useUploadAttachmentMutation/useUploadAttachmentMutation";
 import useAddTagsMutation from "@/mock/lib/apis/mutations/tags/useAddTagsMutation/useAddTagsMutation";
 import useRemoveTagsMutation from "@/mock/lib/apis/mutations/tags/useRemoveTagsMutation/useRemoveTagsMutation";
-import useCreateNoteMutation from "@/mock/lib/apis/mutations/notes/useCreateNoteMutation/useCreateNoteMutation";
-import useDeleteNoteMutation from "@/mock/lib/apis/mutations/notes/useDeleteNoteMutation/useDeleteNoteMutation";
-import usePinNoteMutation from "@/mock/lib/apis/mutations/notes/usePinNoteMutation/usePinNoteMutation";
-import useReprocessNoteMutation from "@/mock/lib/apis/mutations/notes/useReprocessNoteMutation/useReprocessNoteMutation";
 import useAttachmentsQuery from "@/mock/lib/apis/queries/notes/useAttachmentsQuery/useAttachmentsQuery";
 import useNoteActionsQuery from "@/mock/lib/apis/queries/notes/useNoteActionsQuery/useNoteActionsQuery";
 import useNoteDetailQuery from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery";
+import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
 import useRelatedNotesQuery from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery";
+import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 import useNoteStream from "@/mock/lib/hooks/useNoteStream/useNoteStream";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -44,26 +43,33 @@ const EditorPage = () => {
   const [tagInput, setTagInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [noteListWidth, setNoteListWidth] = useState(280);
-  const noteListDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const noteListDragRef = useRef<{ startX: number; startW: number } | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
 
-  const { notes, isLoading: isNotesLoading, selectedNoteNumber, setSelectedNoteNumber } =
-    useEditorNote();
+  const {
+    notes,
+    isLoading: isNotesLoading,
+    selectedNoteNumber,
+    setSelectedNoteNumber,
+  } = useEditorNote();
 
   const hasNote = selectedNoteNumber > 0;
 
   const { data: noteDetail, isLoading: isDetailLoading } =
     useNoteDetailQuery(selectedNoteNumber);
 
-  const { title, content, saveStatus, onTitleChange, onContentChange, flush } = useNoteEditor({
-    noteDetail,
-    noteNumber: selectedNoteNumber,
-    onSaveSuccess: (num) => {
-      // PATCH 성공 → 백엔드 reprocess 시작 → SSE 재구독
-      subscribeNoteStream(num);
-    },
-  });
+  const { title, content, saveStatus, onTitleChange, onContentChange, flush } =
+    useNoteEditor({
+      noteDetail,
+      noteNumber: selectedNoteNumber,
+      onSaveSuccess: num => {
+        // PATCH 성공 → 백엔드 reprocess 시작 → SSE 재구독
+        subscribeNoteStream(num);
+      },
+    });
 
   const handleSelectNote = (noteNumber: number) => {
     flush();
@@ -78,7 +84,8 @@ const EditorPage = () => {
 
   const { data: attachmentsData } = useAttachmentsQuery(selectedNoteNumber);
 
-  const isDetailAreaLoading = hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading);
+  const isDetailAreaLoading =
+    hasNote && (isDetailLoading || isRelatedLoading || isActionsLoading);
 
   const handleCreateNote = () => {
     createNoteMutation.mutate(
@@ -96,12 +103,23 @@ const EditorPage = () => {
   const handlePinToggle = (noteNumber: number, pinned: boolean) => {
     pinNoteMutation.mutate(
       { noteNumber, pinned },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }) },
+      {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+      },
     );
   };
 
-  const [toasts, setToasts] = useState<{ id: number; message: string; undoAction: () => void; displayTimerId: ReturnType<typeof setTimeout> }[]>([]);
-  const deleteTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const [toasts, setToasts] = useState<
+    {
+      id: number;
+      message: string;
+      undoAction: () => void;
+      displayTimerId: ReturnType<typeof setTimeout>;
+    }[]
+  >([]);
+  const deleteTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
 
   const dismissToast = (id: number) => {
     setToasts(prev => {
@@ -116,17 +134,20 @@ const EditorPage = () => {
     const deletedNote = notes.find(n => n.note_number === noteNumber);
 
     // Optimistic: 즉시 UI에서 제거
-    queryClient.setQueriesData<{ items: typeof notes; total: number; skip: number; limit: number; has_next: boolean }>(
-      { queryKey: ["notes", "list"] },
-      old => {
-        if (!old) return old;
-        return {
-          ...old,
-          items: old.items.filter(n => n.note_number !== noteNumber),
-          total: old.total - 1,
-        };
-      },
-    );
+    queryClient.setQueriesData<{
+      items: typeof notes;
+      total: number;
+      skip: number;
+      limit: number;
+      has_next: boolean;
+    }>({ queryKey: ["notes", "list"] }, old => {
+      if (!old) return old;
+      return {
+        ...old,
+        items: old.items.filter(n => n.note_number !== noteNumber),
+        total: old.total - 1,
+      };
+    });
     if (wasSelected) {
       setSelectedNoteNumber(0);
     }
@@ -157,7 +178,10 @@ const EditorPage = () => {
         undoAction: () => {
           // Undo: 삭제 타이머 취소 + UI 복원
           const dt = deleteTimersRef.current.get(noteNumber);
-          if (dt) { clearTimeout(dt); deleteTimersRef.current.delete(noteNumber); }
+          if (dt) {
+            clearTimeout(dt);
+            deleteTimersRef.current.delete(noteNumber);
+          }
           queryClient.invalidateQueries({ queryKey: ["notes"] });
           if (wasSelected) setSelectedNoteNumber(noteNumber);
           dismissToast(noteNumber);
@@ -176,11 +200,16 @@ const EditorPage = () => {
     [noteListWidth],
   );
 
-  const onNoteListResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!noteListDragRef.current) return;
-    const delta = e.clientX - noteListDragRef.current.startX;
-    setNoteListWidth(Math.min(480, Math.max(200, noteListDragRef.current.startW + delta)));
-  }, []);
+  const onNoteListResizeMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!noteListDragRef.current) return;
+      const delta = e.clientX - noteListDragRef.current.startX;
+      setNoteListWidth(
+        Math.min(480, Math.max(200, noteListDragRef.current.startW + delta)),
+      );
+    },
+    [],
+  );
 
   const onNoteListResizeUp = useCallback(() => {
     noteListDragRef.current = null;
@@ -236,12 +265,17 @@ const EditorPage = () => {
     () => notes.map(n => ({ note_number: n.note_number, title: n.title })),
     [notes],
   );
-  const actions: ActionItemResponse[] = noteActions?.length ? noteActions : (noteDetail?.action_items ?? []);
+  const actions: ActionItemResponse[] = noteActions?.length
+    ? noteActions
+    : (noteDetail?.action_items ?? []);
 
   if (isNotesLoading) {
     return (
       <GlobalLayout
-        breadcrumb={[{ label: "Projects" }, { label: "Loading...", active: true }]}
+        breadcrumb={[
+          { label: "Projects" },
+          { label: "Loading...", active: true },
+        ]}
         sidePanel={
           <AISidePanel
             summary={null}
@@ -278,7 +312,10 @@ const EditorPage = () => {
   if (!hasNote || (!noteDetail && !isDetailAreaLoading)) {
     return (
       <GlobalLayout
-        breadcrumb={[{ label: "Projects" }, { label: "No notes", active: true }]}
+        breadcrumb={[
+          { label: "Projects" },
+          { label: "No notes", active: true },
+        ]}
         sidePanel={
           <AISidePanel
             summary={null}
@@ -324,7 +361,10 @@ const EditorPage = () => {
   if (isDetailAreaLoading || !noteDetail) {
     return (
       <GlobalLayout
-        breadcrumb={[{ label: "Projects" }, { label: "Loading...", active: true }]}
+        breadcrumb={[
+          { label: "Projects" },
+          { label: "Loading...", active: true },
+        ]}
         sidePanel={
           <AISidePanel
             summary={null}
@@ -432,11 +472,12 @@ const EditorPage = () => {
           {/* Draft Badge */}
           <div className="mb-[4.8rem]">
             <div className="mb-[1.6rem] flex flex-wrap items-center gap-[0.8rem]">
-              <span className={`shrink-0 rounded-[0.125rem] px-[0.8rem] py-[0.2rem] text-[1rem] font-semibold uppercase tracking-[0.3em] ${
-                isFailed
-                  ? "bg-error/10 text-error"
-                  : "bg-secondary-container/30 text-secondary"
-              }`}>
+              <span
+                className={`shrink-0 rounded-[0.125rem] px-[0.8rem] py-[0.2rem] text-[1rem] font-semibold uppercase tracking-[0.3em] ${
+                  isFailed
+                    ? "bg-error/10 text-error"
+                    : "bg-secondary-container/30 text-secondary"
+                }`}>
                 {isFailed ? "Failed" : "Draft"}
               </span>
               {isFailed && (
@@ -445,7 +486,9 @@ const EditorPage = () => {
                   onClick={handleReprocess}
                   disabled={reprocessMutation.isPending}
                   className="rounded-[0.25rem] bg-primary px-[1.2rem] py-[0.4rem] text-[1.1rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
-                  {reprocessMutation.isPending ? "Reprocessing..." : "Reprocess"}
+                  {reprocessMutation.isPending
+                    ? "Reprocessing..."
+                    : "Reprocess"}
                 </button>
               )}
               {noteDetail.tags.map(tag => (
@@ -539,7 +582,10 @@ const EditorPage = () => {
 
             {/* Drop Zone */}
             <div
-              onClick={() => !uploadAttachmentMutation.isPending && fileInputRef.current?.click()}
+              onClick={() =>
+                !uploadAttachmentMutation.isPending &&
+                fileInputRef.current?.click()
+              }
               className={`mb-[1.6rem] flex cursor-pointer flex-col items-center justify-center rounded-[0.5rem] border-2 border-dashed py-[2.4rem] transition-colors ${
                 isDragging
                   ? "border-primary bg-primary/5"
@@ -555,9 +601,13 @@ const EditorPage = () => {
                 }}
               />
               {uploadAttachmentMutation.isPending ? (
-                <p className="text-[1.2rem] font-medium text-primary">Uploading...</p>
+                <p className="text-[1.2rem] font-medium text-primary">
+                  Uploading...
+                </p>
               ) : isDragging ? (
-                <p className="text-[1.2rem] font-medium text-primary">Drop file here</p>
+                <p className="text-[1.2rem] font-medium text-primary">
+                  Drop file here
+                </p>
               ) : (
                 <>
                   <p className="text-[1.2rem] font-medium text-on-surface-variant">
@@ -593,10 +643,15 @@ const EditorPage = () => {
                         type="button"
                         onClick={() =>
                           deleteAttachmentMutation.mutate(
-                            { noteNumber: selectedNoteNumber, attachmentId: attachment.id },
+                            {
+                              noteNumber: selectedNoteNumber,
+                              attachmentId: attachment.id,
+                            },
                             {
                               onSuccess: () => {
-                                queryClient.invalidateQueries({ queryKey: ["notes"] });
+                                queryClient.invalidateQueries({
+                                  queryKey: ["notes"],
+                                });
                               },
                             },
                           )

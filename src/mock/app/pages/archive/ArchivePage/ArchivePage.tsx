@@ -15,7 +15,8 @@ const ArchivePage = () => {
             Archive
           </h2>
           <p className="max-w-[40rem] text-[1.4rem] leading-relaxed text-on-surface-variant">
-            Archive feature coming soon. Archived notes and projects will appear here.
+            Archive feature coming soon. Archived notes and projects will appear
+            here.
           </p>
         </div>
       </div>

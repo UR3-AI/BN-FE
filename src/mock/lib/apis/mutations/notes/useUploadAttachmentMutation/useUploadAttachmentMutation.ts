@@ -1,10 +1,15 @@
+import { api } from "@lib/apis/axios";
 import { useMutation } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
+import type {
+  UploadAttachmentRequest,
+  UploadAttachmentResponse,
+} from "./useUploadAttachmentMutation.type";
 
-import type { UploadAttachmentRequest, UploadAttachmentResponse } from "./useUploadAttachmentMutation.type";
-
-const uploadAttachment = async ({ noteNumber, file }: UploadAttachmentRequest) => {
+const uploadAttachment = async ({
+  noteNumber,
+  file,
+}: UploadAttachmentRequest) => {
   const formData = new FormData();
   formData.append("file", file);
   const response = await api.post<UploadAttachmentResponse>(

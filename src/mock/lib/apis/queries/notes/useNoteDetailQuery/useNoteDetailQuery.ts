@@ -1,12 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import notesKeys from "../keys";
 import type { NoteDetailResponse } from "./useNoteDetailQuery.type";
 
 const fetchNoteDetail = async (noteNumber: number) => {
-  const response = await api.get<NoteDetailResponse>(`/api/v1/notes/${noteNumber}`);
+  const response = await api.get<NoteDetailResponse>(
+    `/api/v1/notes/${noteNumber}`,
+  );
 
   return response.data;
 };

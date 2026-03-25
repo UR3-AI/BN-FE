@@ -1,8 +1,10 @@
+import { api } from "@lib/apis/axios";
 import { useMutation } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
-import type { AddTagsRequest, AddTagsResponse } from "./useAddTagsMutation.type";
+import type {
+  AddTagsRequest,
+  AddTagsResponse,
+} from "./useAddTagsMutation.type";
 
 const addTags = async ({ noteNumber, tags }: AddTagsRequest) => {
   const response = await api.post<AddTagsResponse>(

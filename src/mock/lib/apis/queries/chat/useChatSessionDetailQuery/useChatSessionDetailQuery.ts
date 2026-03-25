@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import chatKeys from "../keys";
 import type { ChatSessionDetailResponse } from "./useChatSessionDetailQuery.type";

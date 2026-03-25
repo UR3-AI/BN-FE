@@ -1,11 +1,16 @@
+import { api } from "@lib/apis/axios";
 import { useMutation } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
-import type { ResetPasswordRequest, ResetPasswordResponse } from "./useResetPasswordMutation.type";
+import type {
+  ResetPasswordRequest,
+  ResetPasswordResponse,
+} from "./useResetPasswordMutation.type";
 
 const resetPassword = async (data: ResetPasswordRequest) => {
-  const response = await api.post<ResetPasswordResponse>("/api/v1/auth/reset-password", data);
+  const response = await api.post<ResetPasswordResponse>(
+    "/api/v1/auth/reset-password",
+    data,
+  );
   return response.data;
 };
 

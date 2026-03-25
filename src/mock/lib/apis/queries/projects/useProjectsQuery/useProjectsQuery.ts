@@ -1,12 +1,16 @@
+import { api } from "@lib/apis/axios";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
 import projectKeys from "../keys";
-import type { ProjectListResponse, UseProjectsQueryParams } from "./useProjectsQuery.type";
+import type {
+  ProjectListResponse,
+  UseProjectsQueryParams,
+} from "./useProjectsQuery.type";
 
 const fetchProjects = async (params: UseProjectsQueryParams) => {
-  const response = await api.get<ProjectListResponse>("/api/v1/projects", { params });
+  const response = await api.get<ProjectListResponse>("/api/v1/projects", {
+    params,
+  });
   return response.data;
 };
 

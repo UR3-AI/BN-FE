@@ -32,7 +32,11 @@ const FOCUS_TASKS = [
 
 type BarColor = "primary" | "secondary" | "default";
 
-const WEEKLY_ACTIVITY: { day: string; heightPercent: number; color: BarColor }[] = [
+const WEEKLY_ACTIVITY: {
+  day: string;
+  heightPercent: number;
+  color: BarColor;
+}[] = [
   { day: "MON", heightPercent: 40, color: "default" },
   { day: "TUE", heightPercent: 65, color: "default" },
   { day: "WED", heightPercent: 50, color: "default" },
@@ -47,8 +51,7 @@ const DashboardPage = () => {
 
   if (isLoading) {
     return (
-      <GlobalLayout
-        showSearch={true}>
+      <GlobalLayout showSearch={true}>
         <div className="flex-1 flex items-center justify-center text-[1.4rem] text-on-surface-variant">
           Loading...
         </div>
@@ -58,8 +61,7 @@ const DashboardPage = () => {
 
   if (error || !data) {
     return (
-      <GlobalLayout
-        showSearch={true}>
+      <GlobalLayout showSearch={true}>
         <div className="flex-1 flex items-center justify-center text-[1.4rem] text-error">
           데이터를 불러오지 못했습니다.
         </div>
@@ -68,8 +70,7 @@ const DashboardPage = () => {
   }
 
   return (
-    <GlobalLayout
-      showSearch={true}>
+    <GlobalLayout showSearch={true}>
       <div className="flex-1 px-[3.2rem] py-[4rem] flex flex-col gap-[4rem]">
         {/* Greeting Section */}
         <section className="flex flex-col gap-[0.4rem]">
@@ -270,7 +271,8 @@ const DashboardPage = () => {
                 Today's Focus
               </h3>
               <span className="text-[1rem] text-secondary font-bold uppercase tracking-[0.12em]">
-                {data.action_summary.completed} / {data.action_summary.total} DONE
+                {data.action_summary.completed} / {data.action_summary.total}{" "}
+                DONE
               </span>
             </div>
             <div className="flex flex-col gap-[0.4rem]">

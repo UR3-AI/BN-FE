@@ -40,11 +40,19 @@ const GlobalLayout = ({
     [panelWidth],
   );
 
-  const onResizePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    const delta = dragRef.current.startX - e.clientX;
-    setPanelWidth(Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, dragRef.current.startW + delta)));
-  }, []);
+  const onResizePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragRef.current) return;
+      const delta = dragRef.current.startX - e.clientX;
+      setPanelWidth(
+        Math.min(
+          MAX_PANEL_WIDTH,
+          Math.max(MIN_PANEL_WIDTH, dragRef.current.startW + delta),
+        ),
+      );
+    },
+    [],
+  );
 
   const onResizePointerUp = useCallback(() => {
     dragRef.current = null;

@@ -1,12 +1,11 @@
-import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
-import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
-
 import {
   CheckboxBlankIcon,
   CheckboxIcon,
   SparklesIcon,
   TreeIcon,
 } from "@/mock/app/components/Icons";
+import type { ActionItemResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
+import type { RelatedNote } from "@/mock/lib/apis/queries/notes/useRelatedNotesQuery/useRelatedNotesQuery.type";
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
   person: "#f4a8b5",
@@ -79,9 +78,21 @@ interface AISidePanelProps {
   isProcessing: boolean;
 }
 
-const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle, isProcessing }: AISidePanelProps) => {
-  const isResearch = tags.includes("research") || tags.includes("auto-generated");
-  const { nodes: graphNodes, edges: graphEdges } = buildMiniGraph(noteTitle, relatedNotes);
+const AISidePanel = ({
+  summary,
+  content,
+  tags,
+  actions,
+  relatedNotes,
+  noteTitle,
+  isProcessing,
+}: AISidePanelProps) => {
+  const isResearch =
+    tags.includes("research") || tags.includes("auto-generated");
+  const { nodes: graphNodes, edges: graphEdges } = buildMiniGraph(
+    noteTitle,
+    relatedNotes,
+  );
   return (
     <div className="p-[2.4rem]">
       {/* Header */}
@@ -146,7 +157,9 @@ const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle,
               </span>
             ))
           ) : (
-            <span className="text-[1.2rem] text-on-surface-variant">No tags</span>
+            <span className="text-[1.2rem] text-on-surface-variant">
+              No tags
+            </span>
           )}
         </div>
       </div>
@@ -159,7 +172,8 @@ const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle,
         <div className="space-y-[1.2rem]">
           {actions.length > 0 ? (
             actions.map(action => {
-              const isCompleted = action.status === "completed" || action.status === "done";
+              const isCompleted =
+                action.status === "completed" || action.status === "done";
               return (
                 <div
                   key={action.id}
@@ -196,7 +210,9 @@ const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle,
               );
             })
           ) : (
-            <p className="text-[1.2rem] text-on-surface-variant">No action items</p>
+            <p className="text-[1.2rem] text-on-surface-variant">
+              No action items
+            </p>
           )}
         </div>
       </div>
@@ -272,7 +288,9 @@ const AISidePanel = ({ summary, content, tags, actions, relatedNotes, noteTitle,
                       fill={isCenter ? "#ffe2ab" : "#a8a29e"}
                       fontSize={isCenter ? "3" : "2.5"}
                       fontWeight={isCenter ? "bold" : "normal"}>
-                      {node.label.length > 8 ? node.label.slice(0, 7) + "…" : node.label}
+                      {node.label.length > 8
+                        ? node.label.slice(0, 7) + "…"
+                        : node.label}
                     </text>
                   </g>
                 );

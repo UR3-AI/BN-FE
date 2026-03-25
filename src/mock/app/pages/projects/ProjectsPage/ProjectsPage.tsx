@@ -12,9 +12,9 @@ import { GlobalLayout } from "@/mock/app/components/layout";
 import useCreateProjectMutation from "@/mock/lib/apis/mutations/projects/useCreateProjectMutation/useCreateProjectMutation";
 import useDeleteProjectMutation from "@/mock/lib/apis/mutations/projects/useDeleteProjectMutation/useDeleteProjectMutation";
 import useProjectNotesMutation from "@/mock/lib/apis/mutations/projects/useProjectNotesMutation/useProjectNotesMutation";
+import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
 import useProjectDetailQuery from "@/mock/lib/apis/queries/projects/useProjectDetailQuery/useProjectDetailQuery";
 import useProjectsQuery from "@/mock/lib/apis/queries/projects/useProjectsQuery/useProjectsQuery";
-import useNotesQuery from "@/mock/lib/apis/queries/notes/useNotesQuery/useNotesQuery";
 import { useQueryClient } from "@tanstack/react-query";
 
 const PROJECT_COLORS = [
@@ -150,44 +150,44 @@ const ProjectDetailPanel = ({
 
           {/* Recent Notes */}
           {project.recent_notes.length > 0 && (
-              <div className="space-y-[1.2rem]">
-                <h4 className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface/40">
-                  Notes in Project
-                </h4>
-                <div className="space-y-[0.8rem]">
-                  {project.recent_notes.map(note => (
-                    <div
-                      key={note.note_number}
-                      className="group flex items-center justify-between rounded-[0.25rem] bg-surface-container-low p-[1.2rem] transition-colors hover:bg-surface-container">
-                      <div className="flex items-center gap-[1.2rem]">
-                        <DescriptionIcon
-                          size="1.8rem"
-                          fill="#ffe2ab"
-                        />
-                        <div>
-                          <p className="text-[1.3rem] font-medium text-on-surface">
-                            {note.title ?? "Untitled"}
-                          </p>
-                          <p className="text-[1rem] text-outline">
-                            Note #{note.note_number}
-                          </p>
-                        </div>
+            <div className="space-y-[1.2rem]">
+              <h4 className="text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface/40">
+                Notes in Project
+              </h4>
+              <div className="space-y-[0.8rem]">
+                {project.recent_notes.map(note => (
+                  <div
+                    key={note.note_number}
+                    className="group flex items-center justify-between rounded-[0.25rem] bg-surface-container-low p-[1.2rem] transition-colors hover:bg-surface-container">
+                    <div className="flex items-center gap-[1.2rem]">
+                      <DescriptionIcon
+                        size="1.8rem"
+                        fill="#ffe2ab"
+                      />
+                      <div>
+                        <p className="text-[1.3rem] font-medium text-on-surface">
+                          {note.title ?? "Untitled"}
+                        </p>
+                        <p className="text-[1rem] text-outline">
+                          Note #{note.note_number}
+                        </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveNote(note.note_number)}
-                        disabled={projectNotesMutation.isPending}
-                        className="text-secondary opacity-0 transition-all hover:text-error group-hover:opacity-100 disabled:opacity-50">
-                        <LinkIcon
-                          size="1.4rem"
-                          fill="currentColor"
-                        />
-                      </button>
                     </div>
-                  ))}
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveNote(note.note_number)}
+                      disabled={projectNotesMutation.isPending}
+                      className="text-secondary opacity-0 transition-all hover:text-error group-hover:opacity-100 disabled:opacity-50">
+                      <LinkIcon
+                        size="1.4rem"
+                        fill="currentColor"
+                      />
+                    </button>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -204,14 +204,20 @@ const ProjectsPage = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(PROJECT_COLORS[0]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
 
   const projects = data?.items ?? [];
 
   const handleCreate = () => {
     if (!name.trim()) return;
     createMutation.mutate(
-      { name: name.trim(), description: description.trim() || undefined, color },
+      {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        color,
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -225,7 +231,8 @@ const ProjectsPage = () => {
   };
 
   const handleDelete = (projectId: string) => {
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
+    if (!window.confirm("Are you sure you want to delete this project?"))
+      return;
     deleteMutation.mutate(projectId, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -341,7 +348,9 @@ const ProjectsPage = () => {
                     onClick={handleCreate}
                     disabled={!name.trim() || createMutation.isPending}
                     className="rounded-[0.375rem] bg-primary px-[2.4rem] py-[1rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
-                    {createMutation.isPending ? "Creating..." : "Create Project"}
+                    {createMutation.isPending
+                      ? "Creating..."
+                      : "Create Project"}
                   </button>
                   <button
                     type="button"
@@ -387,7 +396,8 @@ const ProjectsPage = () => {
                   )}
                   <div className="flex items-center justify-between">
                     <span className="text-[1.2rem] text-secondary">
-                      {project.note_count} note{project.note_count !== 1 ? "s" : ""}
+                      {project.note_count} note
+                      {project.note_count !== 1 ? "s" : ""}
                     </span>
                     <button
                       type="button"

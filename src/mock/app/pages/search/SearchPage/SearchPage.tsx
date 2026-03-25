@@ -79,7 +79,8 @@ const SearchPage = () => {
                 Search to explore your cognitive workspace
               </h2>
               <p className="font-body text-[1.4rem] text-outline">
-                Type a query above and press Enter to search your notes and entities.
+                Type a query above and press Enter to search your notes and
+                entities.
               </p>
             </div>
           )}
@@ -124,7 +125,10 @@ const SearchPage = () => {
                     </span>
                   </h1>
                   <p className="mt-[0.8rem] font-body text-[1.4rem] text-on-surface-variant">
-                    Found {notes.length} note{notes.length !== 1 ? "s" : ""} and {entities.length} {entities.length !== 1 ? "entities" : "entity"} across your cognitive workspace.
+                    Found {notes.length} note{notes.length !== 1 ? "s" : ""} and{" "}
+                    {entities.length}{" "}
+                    {entities.length !== 1 ? "entities" : "entity"} across your
+                    cognitive workspace.
                   </p>
                 </div>
                 <div className="flex items-center gap-[0.8rem] font-label text-[1.2rem] text-outline">
@@ -159,7 +163,8 @@ const SearchPage = () => {
                         {entities[0].name}
                       </h2>
                       <p className="mb-[2.4rem] max-w-[51.2rem] font-body text-[1.4rem] leading-relaxed text-on-surface-variant">
-                        Entity found in your cognitive workspace with {entities[0].mention_count} mentions across your notes.
+                        Entity found in your cognitive workspace with{" "}
+                        {entities[0].mention_count} mentions across your notes.
                       </p>
                       {entities.length > 1 && (
                         <div className="flex flex-wrap gap-[0.8rem]">
@@ -287,7 +292,8 @@ const SearchPage = () => {
                       </span>
                     </div>
                     <p className="text-[1.2rem] italic leading-relaxed text-on-surface-variant">
-                      &ldquo;Explore connections between your search results to discover new insights in your cognitive workspace.&rdquo;
+                      &ldquo;Explore connections between your search results to
+                      discover new insights in your cognitive workspace.&rdquo;
                     </p>
                     <button
                       type="button"
@@ -315,7 +321,8 @@ const SearchPage = () => {
                         Knowledge Cluster: {data?.query}
                       </h4>
                       <p className="text-[1rem] text-outline">
-                        View the {entities.length} interconnected nodes in the immersive graph.
+                        View the {entities.length} interconnected nodes in the
+                        immersive graph.
                       </p>
                       <button
                         type="button"
@@ -335,7 +342,11 @@ const SearchPage = () => {
 };
 
 /** 검색 필터 사이드 패널 */
-const FilterSidePanel = ({ tags }: { tags: { tag: string; count: number }[] }) => {
+const FilterSidePanel = ({
+  tags,
+}: {
+  tags: { tag: string; count: number }[];
+}) => {
   const queryClient = useQueryClient();
   const renameMutation = useRenameTagMutation();
   const deleteMutation = useDeleteTagMutation();

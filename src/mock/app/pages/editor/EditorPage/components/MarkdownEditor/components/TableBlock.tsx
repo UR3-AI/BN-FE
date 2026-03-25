@@ -31,16 +31,24 @@ const TableBlock = ({ block, onChange }: TableBlockProps) => {
   const rows = parseTableRows(block.raw);
   const headerRow = rows[0] ?? [];
   const separatorIdx = rows.findIndex(r => isSeparatorRow(r));
-  const dataRows = separatorIdx >= 0 ? rows.slice(separatorIdx + 1) : rows.slice(1);
+  const dataRows =
+    separatorIdx >= 0 ? rows.slice(separatorIdx + 1) : rows.slice(1);
   const colCount = headerRow.length;
 
   // Column resize: store per-column width overrides (colIdx -> pct)
-  const [colWidthOverrides, setColWidthOverrides] = useState<Record<number, number>>({});
-  const resizeRef = useRef<{ colIdx: number; startX: number; startWidth: number } | null>(null);
+  const [colWidthOverrides, setColWidthOverrides] = useState<
+    Record<number, number>
+  >({});
+  const resizeRef = useRef<{
+    colIdx: number;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  const colWidths = Array.from({ length: colCount }, (_, i) =>
-    colWidthOverrides[i] ?? Math.floor(100 / colCount),
+  const colWidths = Array.from(
+    { length: colCount },
+    (_, i) => colWidthOverrides[i] ?? Math.floor(100 / colCount),
   );
 
   // Cleanup resize listeners on unmount
@@ -64,7 +72,10 @@ const TableBlock = ({ block, onChange }: TableBlockProps) => {
       const newPx = Math.max(40, resizeRef.current.startWidth + delta);
       const newPct = Math.round((newPx / tableWidth) * 100);
       if (resizeRef.current) {
-        setColWidthOverrides(prev => ({ ...prev, [resizeRef.current!.colIdx]: newPct }));
+        setColWidthOverrides(prev => ({
+          ...prev,
+          [resizeRef.current!.colIdx]: newPct,
+        }));
       }
     };
 
@@ -84,7 +95,8 @@ const TableBlock = ({ block, onChange }: TableBlockProps) => {
 
   const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {
     const allRows = parseTableRows(block.raw);
-    const targetIdx = separatorIdx >= 0 ? rowIdx + separatorIdx + 1 : rowIdx + 1;
+    const targetIdx =
+      separatorIdx >= 0 ? rowIdx + separatorIdx + 1 : rowIdx + 1;
     if (rowIdx === -1) {
       allRows[0][colIdx] = value;
     } else if (allRows[targetIdx]) {
@@ -110,7 +122,9 @@ const TableBlock = ({ block, onChange }: TableBlockProps) => {
   const addColumn = () => {
     const allRows = parseTableRows(block.raw);
     allRows.forEach((row, i) => {
-      row.push(isSeparatorRow(row) ? "---" : i === 0 ? `Column ${row.length + 1}` : "");
+      row.push(
+        isSeparatorRow(row) ? "---" : i === 0 ? `Column ${row.length + 1}` : "",
+      );
     });
     setColWidthOverrides({});
     onChange(rebuildTableRaw(allRows));

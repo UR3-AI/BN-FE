@@ -1,9 +1,6 @@
 import type { IconCommonProps } from "../icon.type";
 
-const GoogleIcon = ({
-  size = "2rem",
-  ...props
-}: IconCommonProps) => {
+const GoogleIcon = ({ size = "2rem", ...props }: IconCommonProps) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

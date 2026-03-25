@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 
-import type { Block } from "../MarkdownEditor.type";
 import { BLOCK_PREFIX } from "../MarkdownEditor.constants";
+import type { Block } from "../MarkdownEditor.type";
 import {
   applyInlineFormatting,
   escapeHtml,
@@ -130,7 +130,12 @@ const BlockEditorInner = ({
     if (!el) return;
     // block.raw 기준으로 재렌더 (htmlToMarkdownInline 경유하지 않아 이중 인코딩 방지)
     const escaped = escapeHtml(displayText);
-    const html = block.type === "hr" ? "" : block.type === "code" ? escaped : applyInlineFormatting(escaped);
+    const html =
+      block.type === "hr"
+        ? ""
+        : block.type === "code"
+          ? escaped
+          : applyInlineFormatting(escaped);
     if (el.innerHTML !== html) {
       el.innerHTML = html;
     }
@@ -145,7 +150,8 @@ const BlockEditorInner = ({
 
     if (html) {
       // <img> 태그를 마크다운 이미지로 변환하여 text에 삽입
-      const imgRegex = /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*\/?>/gi;
+      const imgRegex =
+        /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*\/?>/gi;
       const images: string[] = [];
       let match;
       while ((match = imgRegex.exec(html)) !== null) {
@@ -420,7 +426,9 @@ const BlockEditorInner = ({
 
     const blockPrefix = BLOCK_PREFIX[block.type] ?? "";
     if (block.type === "todo") {
-      const todoPrefix = block.raw.trim().match(/^- \[x\] /i) ? "- [x] " : "- [ ] ";
+      const todoPrefix = block.raw.trim().match(/^- \[x\] /i)
+        ? "- [x] "
+        : "- [ ] ";
       onChange("  ".repeat(block.indent) + todoPrefix + result.text);
     } else {
       onChange("  ".repeat(block.indent) + blockPrefix + result.text);
@@ -440,7 +448,10 @@ const BlockEditorInner = ({
     const codeLines = block.raw.split("\n");
     const lang = codeLines[0]?.replace(/^```/, "").trim() || "";
     const codeContent = codeLines
-      .slice(1, codeLines[codeLines.length - 1]?.trim() === "```" ? -1 : undefined)
+      .slice(
+        1,
+        codeLines[codeLines.length - 1]?.trim() === "```" ? -1 : undefined,
+      )
       .join("\n");
 
     return (
@@ -454,7 +465,9 @@ const BlockEditorInner = ({
               const newLang = e.target.value;
               const bodyLines = codeLines.slice(
                 1,
-                codeLines[codeLines.length - 1]?.trim() === "```" ? -1 : undefined,
+                codeLines[codeLines.length - 1]?.trim() === "```"
+                  ? -1
+                  : undefined,
               );
               onChange("```" + newLang + "\n" + bodyLines.join("\n") + "\n```");
             }}
@@ -483,7 +496,8 @@ const BlockEditorInner = ({
               const start = target.selectionStart;
               const end = target.selectionEnd;
               const value = target.value;
-              const newValue = value.substring(0, start) + "  " + value.substring(end);
+              const newValue =
+                value.substring(0, start) + "  " + value.substring(end);
               onChange("```" + lang + "\n" + newValue + "\n```");
               requestAnimationFrame(() => {
                 target.selectionStart = target.selectionEnd = start + 2;
@@ -492,7 +506,9 @@ const BlockEditorInner = ({
           }}
           spellCheck={false}
           className="w-full resize-none bg-transparent px-[1.6rem] py-[1.2rem] font-mono text-[1.4rem] leading-relaxed text-secondary outline-none"
-          style={{ fieldSizing: "content", minHeight: "4rem" } as React.CSSProperties}
+          style={
+            { fieldSizing: "content", minHeight: "4rem" } as React.CSSProperties
+          }
         />
       </div>
     );
@@ -628,7 +644,9 @@ const BlockEditorInner = ({
             onToggle?.(block.id);
           }}
           className="flex-shrink-0 mt-[0.2rem] text-[1.6rem] text-on-surface-variant/50 transition-transform hover:text-on-surface-variant"
-          style={{ transform: isToggleOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+          style={{
+            transform: isToggleOpen ? "rotate(90deg)" : "rotate(0deg)",
+          }}>
           ▶
         </button>
         <div

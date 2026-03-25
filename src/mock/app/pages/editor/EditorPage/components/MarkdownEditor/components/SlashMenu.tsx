@@ -9,7 +9,10 @@ interface TableGridPickerProps {
 }
 
 const TableGridPicker = ({ onSelect }: TableGridPickerProps) => {
-  const [hovered, setHovered] = useState<{ rows: number; cols: number }>({ rows: 0, cols: 0 });
+  const [hovered, setHovered] = useState<{ rows: number; cols: number }>({
+    rows: 0,
+    cols: 0,
+  });
   const MAX_ROWS = 6;
   const MAX_COLS = 6;
 
@@ -58,7 +61,13 @@ interface SlashMenuProps {
   onTableSelect: (rows: number, cols: number) => void;
 }
 
-const SlashMenu = ({ filter, selectedIndex, position, onSelect, onTableSelect }: SlashMenuProps) => {
+const SlashMenu = ({
+  filter,
+  selectedIndex,
+  position,
+  onSelect,
+  onTableSelect,
+}: SlashMenuProps) => {
   const filtered = SLASH_COMMANDS.filter(cmd =>
     cmd.label.toLowerCase().includes(filter.toLowerCase()),
   );
@@ -100,10 +109,16 @@ const SlashMenu = ({ filter, selectedIndex, position, onSelect, onTableSelect }:
                 e.preventDefault();
                 handleSelect(cmd.id);
               }}>
-              <span className="w-[2rem] text-center text-[1.4rem] font-medium">{cmd.icon}</span>
+              <span className="w-[2rem] text-center text-[1.4rem] font-medium">
+                {cmd.icon}
+              </span>
               <div>
-                <div className="text-[1.4rem] font-medium leading-tight">{cmd.label}</div>
-                <div className="text-[1.2rem] text-on-surface-variant/60">{cmd.description}</div>
+                <div className="text-[1.4rem] font-medium leading-tight">
+                  {cmd.label}
+                </div>
+                <div className="text-[1.2rem] text-on-surface-variant/60">
+                  {cmd.description}
+                </div>
               </div>
             </div>
           ))}

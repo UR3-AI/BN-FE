@@ -1,8 +1,10 @@
+import { api } from "@lib/apis/axios";
 import { useMutation } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
-import type { ExecuteActionRequest, ExecuteActionResponse } from "./useExecuteActionMutation.type";
+import type {
+  ExecuteActionRequest,
+  ExecuteActionResponse,
+} from "./useExecuteActionMutation.type";
 
 const executeAction = async (actionId: ExecuteActionRequest) => {
   const response = await api.post<ExecuteActionResponse>(

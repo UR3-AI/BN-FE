@@ -33,7 +33,10 @@ const SettingsPage = () => {
   const [deviceRegistered, setDeviceRegistered] = useState(false);
   const [deviceMsg, setDeviceMsg] = useState("");
 
-  const currentTimezone = timezone || data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const currentTimezone =
+    timezone ||
+    data?.timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const handleSaveTimezone = () => {
     updateTimezoneMutation.mutate(
@@ -104,7 +107,9 @@ const SettingsPage = () => {
                   <div className="flex items-center gap-[2.4rem]">
                     <div className="relative">
                       <div className="flex h-[9.6rem] w-[9.6rem] items-center justify-center rounded-[1.6rem] bg-surface-container-highest ring-4 ring-primary/10">
-                        <span className="font-headline text-[3.2rem] font-bold text-primary">AR</span>
+                        <span className="font-headline text-[3.2rem] font-bold text-primary">
+                          AR
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -205,7 +210,10 @@ const SettingsPage = () => {
               {/* Security */}
               <section className="rounded-[0.5rem] bg-surface-container-low p-[3.2rem] shadow-sm">
                 <h3 className="mb-[2.4rem] flex items-center gap-[0.8rem] font-headline text-[1.8rem] font-bold text-on-surface">
-                  <SecurityIcon size="2.4rem" fill="#ffe2ab" />
+                  <SecurityIcon
+                    size="2.4rem"
+                    fill="#ffe2ab"
+                  />
                   Security & Access
                 </h3>
                 <div className="space-y-[1.6rem]">
@@ -215,7 +223,10 @@ const SettingsPage = () => {
                       onClick={() => setShowPasswordForm(prev => !prev)}
                       className="group flex w-full cursor-pointer items-center justify-between rounded-[0.25rem] bg-surface-container p-[1.6rem] transition-colors hover:bg-surface-bright">
                       <div className="flex items-center gap-[1.6rem]">
-                        <PasskeyIcon size="2.4rem" fill="#9fd0cd" />
+                        <PasskeyIcon
+                          size="2.4rem"
+                          fill="#9fd0cd"
+                        />
                         <div className="text-left">
                           <p className="text-[1.4rem] font-medium text-on-surface">
                             Change Password
@@ -248,16 +259,25 @@ const SettingsPage = () => {
                         <button
                           type="button"
                           onClick={handleChangePassword}
-                          disabled={!currentPassword || !newPassword || changePasswordMutation.isPending}
+                          disabled={
+                            !currentPassword ||
+                            !newPassword ||
+                            changePasswordMutation.isPending
+                          }
                           className="rounded-[0.25rem] bg-primary px-[1.6rem] py-[0.8rem] text-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 disabled:opacity-50">
-                          {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                          {changePasswordMutation.isPending
+                            ? "Changing..."
+                            : "Change Password"}
                         </button>
                       </div>
                     )}
                   </div>
                   <div className="group flex cursor-pointer items-center justify-between rounded-[0.25rem] bg-surface-container p-[1.6rem] transition-colors hover:bg-surface-bright">
                     <div className="flex items-center gap-[1.6rem]">
-                      <VerifiedUserIcon size="2.4rem" fill="#9fd0cd" />
+                      <VerifiedUserIcon
+                        size="2.4rem"
+                        fill="#9fd0cd"
+                      />
                       <div>
                         <p className="text-[1.4rem] font-medium text-on-surface">
                           Two-Factor Authentication
@@ -280,7 +300,10 @@ const SettingsPage = () => {
               <section className="flex h-full flex-col overflow-hidden rounded-[0.5rem] bg-surface-container-low shadow-sm">
                 <div className="bg-surface-container-highest/30 p-[2.4rem]">
                   <h3 className="flex items-center gap-[0.8rem] font-headline text-[1.8rem] font-bold text-primary">
-                    <NotificationsActiveIcon size="2.4rem" fill="#ffe2ab" />
+                    <NotificationsActiveIcon
+                      size="2.4rem"
+                      fill="#ffe2ab"
+                    />
                     Preferences
                   </h3>
                   <p className="mt-[0.4rem] text-[1.2rem] text-secondary/70">
@@ -296,12 +319,18 @@ const SettingsPage = () => {
                     {[
                       { label: "Mentions & Comments", checked: true },
                       { label: "Node Connections", checked: true },
-                      { label: "System Updates", checked: false, disabled: true },
+                      {
+                        label: "System Updates",
+                        checked: false,
+                        disabled: true,
+                      },
                     ].map(({ label, checked, disabled }) => (
                       <div
                         key={label}
                         className={`flex items-center justify-between ${disabled ? "opacity-50" : ""}`}>
-                        <span className="text-[1.4rem] text-on-surface">{label}</span>
+                        <span className="text-[1.4rem] text-on-surface">
+                          {label}
+                        </span>
                         <button
                           type="button"
                           role="switch"
@@ -309,7 +338,9 @@ const SettingsPage = () => {
                           aria-label={label}
                           disabled={disabled}
                           className={`relative inline-flex h-[2rem] w-[4rem] items-center rounded-full ${checked ? "bg-secondary-container" : "bg-surface-container-highest"} ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
-                          <div className={`absolute h-[1.6rem] w-[1.6rem] rounded-full transition-all ${checked ? "left-[2.2rem] bg-secondary" : "left-[0.2rem] bg-secondary/30"}`} />
+                          <div
+                            className={`absolute h-[1.6rem] w-[1.6rem] rounded-full transition-all ${checked ? "left-[2.2rem] bg-secondary" : "left-[0.2rem] bg-secondary/30"}`}
+                          />
                         </button>
                       </div>
                     ))}
@@ -320,11 +351,16 @@ const SettingsPage = () => {
                           onClick={() => {
                             setDeviceMsg("");
                             registerDeviceMutation.mutate(
-                              { fcm_token: "mock-fcm-token-placeholder", device_type: "web" },
+                              {
+                                fcm_token: "mock-fcm-token-placeholder",
+                                device_type: "web",
+                              },
                               {
                                 onSuccess: () => {
                                   setDeviceRegistered(true);
-                                  setDeviceMsg("Device registered for push notifications.");
+                                  setDeviceMsg(
+                                    "Device registered for push notifications.",
+                                  );
                                 },
                                 onError: () => {
                                   setDeviceMsg("Failed to register device.");
@@ -334,7 +370,9 @@ const SettingsPage = () => {
                           }}
                           disabled={registerDeviceMutation.isPending}
                           className="w-full rounded-[0.25rem] bg-primary px-[1.6rem] py-[0.8rem] text-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-95 disabled:opacity-50">
-                          {registerDeviceMutation.isPending ? "Registering..." : "Register This Device"}
+                          {registerDeviceMutation.isPending
+                            ? "Registering..."
+                            : "Register This Device"}
                         </button>
                       ) : (
                         <button
@@ -353,11 +391,14 @@ const SettingsPage = () => {
                           }}
                           disabled={unregisterDeviceMutation.isPending}
                           className="w-full rounded-[0.25rem] border border-outline-variant/20 px-[1.6rem] py-[0.8rem] text-[1.2rem] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50">
-                          {unregisterDeviceMutation.isPending ? "Unregistering..." : "Unregister Device"}
+                          {unregisterDeviceMutation.isPending
+                            ? "Unregistering..."
+                            : "Unregister Device"}
                         </button>
                       )}
                       {deviceMsg && (
-                        <p className={`mt-[0.8rem] text-[1.1rem] ${registerDeviceMutation.isError || unregisterDeviceMutation.isError ? "text-error" : "text-secondary"}`}>
+                        <p
+                          className={`mt-[0.8rem] text-[1.1rem] ${registerDeviceMutation.isError || unregisterDeviceMutation.isError ? "text-error" : "text-secondary"}`}>
                           {deviceMsg}
                         </p>
                       )}
@@ -376,14 +417,18 @@ const SettingsPage = () => {
                       <div
                         key={label}
                         className="flex items-center justify-between">
-                        <span className="text-[1.4rem] text-on-surface">{label}</span>
+                        <span className="text-[1.4rem] text-on-surface">
+                          {label}
+                        </span>
                         <button
                           type="button"
                           role="switch"
                           aria-checked={checked}
                           aria-label={label}
                           className={`relative inline-flex h-[2rem] w-[4rem] cursor-pointer items-center rounded-full ${checked ? "bg-primary-container/30" : "bg-surface-container-highest"}`}>
-                          <div className={`absolute h-[1.6rem] w-[1.6rem] rounded-full transition-all ${checked ? "left-[2.2rem] bg-primary" : "left-[0.2rem] bg-primary/40"}`} />
+                          <div
+                            className={`absolute h-[1.6rem] w-[1.6rem] rounded-full transition-all ${checked ? "left-[2.2rem] bg-primary" : "left-[0.2rem] bg-primary/40"}`}
+                          />
                         </button>
                       </div>
                     ))}
@@ -396,10 +441,18 @@ const SettingsPage = () => {
                         Quiet Hours
                       </p>
                       <div className="flex items-center gap-[0.8rem]">
-                        <span className="text-[1rem] text-secondary/60">From</span>
-                        <span className="font-mono text-[1.2rem] text-primary">22:00</span>
-                        <span className="text-[1rem] text-secondary/60">to</span>
-                        <span className="font-mono text-[1.2rem] text-primary">08:00</span>
+                        <span className="text-[1rem] text-secondary/60">
+                          From
+                        </span>
+                        <span className="font-mono text-[1.2rem] text-primary">
+                          22:00
+                        </span>
+                        <span className="text-[1rem] text-secondary/60">
+                          to
+                        </span>
+                        <span className="font-mono text-[1.2rem] text-primary">
+                          08:00
+                        </span>
                         <button
                           type="button"
                           className="ml-auto text-secondary hover:text-primary">
@@ -421,7 +474,8 @@ const SettingsPage = () => {
                   Danger Zone
                 </h4>
                 <p className="text-[1.4rem] text-on-surface-variant">
-                  Permanently delete your account and all associated data. This action cannot be undone.
+                  Permanently delete your account and all associated data. This
+                  action cannot be undone.
                 </p>
               </div>
               <button

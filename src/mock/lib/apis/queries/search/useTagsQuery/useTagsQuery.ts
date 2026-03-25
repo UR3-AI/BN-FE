@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import searchKeys from "../keys";
 import type { TagListResponse } from "./useTagsQuery.type";

@@ -1,6 +1,5 @@
-import { useMutation } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useMutation } from "@tanstack/react-query";
 
 import type { ChatRequest, ChatResponse } from "./useChatMutation.type";
 

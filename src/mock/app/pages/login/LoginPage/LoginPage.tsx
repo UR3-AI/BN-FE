@@ -9,7 +9,6 @@ import {
   LockIcon,
 } from "@/mock/app/components/Icons";
 import useForgotPasswordMutation from "@/mock/lib/apis/mutations/auth/useForgotPasswordMutation/useForgotPasswordMutation";
-
 import { useLoginMutation, useRegisterMutation } from "@lib/apis/mutations";
 import { useAuthStore } from "@lib/stores";
 
@@ -246,7 +245,8 @@ const LoginPage = () => {
                   Reset Your Password
                 </p>
                 <p className="mb-[2rem] text-[1.3rem] text-on-surface-variant">
-                  Enter your email address and we'll send you a link to reset your password.
+                  Enter your email address and we'll send you a link to reset
+                  your password.
                 </p>
                 <div className="space-y-[1.6rem]">
                   <input
@@ -257,16 +257,21 @@ const LoginPage = () => {
                     className="w-full border-0 border-b-2 border-outline-variant bg-surface-container px-[1.6rem] py-[1.2rem] font-body text-[1.4rem] text-on-surface transition-all placeholder:text-on-surface-variant/30 focus:border-primary focus:outline-none focus:ring-0"
                   />
                   {forgotMsg && (
-                    <p className={`text-[1.2rem] ${forgotPasswordMutation.isError ? "text-error" : "text-secondary"}`}>
+                    <p
+                      className={`text-[1.2rem] ${forgotPasswordMutation.isError ? "text-error" : "text-secondary"}`}>
                       {forgotMsg}
                     </p>
                   )}
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    disabled={!forgotEmail.trim() || forgotPasswordMutation.isPending}
+                    disabled={
+                      !forgotEmail.trim() || forgotPasswordMutation.isPending
+                    }
                     className="w-full rounded-[0.375rem] bg-primary py-[1.2rem] font-semibold text-on-primary transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
-                    {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
+                    {forgotPasswordMutation.isPending
+                      ? "Sending..."
+                      : "Send Reset Link"}
                   </button>
                 </div>
               </div>

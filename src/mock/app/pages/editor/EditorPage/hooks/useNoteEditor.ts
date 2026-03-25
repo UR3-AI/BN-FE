@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
-import { api } from "@lib/apis/axios";
-
 import useUpdateNoteMutation from "@/mock/lib/apis/mutations/notes/useUpdateNoteMutation/useUpdateNoteMutation";
-
 import type { NoteDetailResponse } from "@/mock/lib/apis/queries/notes/useNoteDetailQuery/useNoteDetailQuery.type";
+import { api } from "@lib/apis/axios";
 import { useQueryClient } from "@tanstack/react-query";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -15,7 +13,10 @@ const DEBOUNCE_MS = 2500;
 const MAX_UNSAVED = 20;
 const unsavedEditsMap = new Map<number, { title: string; content: string }>();
 
-const addUnsaved = (noteNumber: number, data: { title: string; content: string }) => {
+const addUnsaved = (
+  noteNumber: number,
+  data: { title: string; content: string },
+) => {
   unsavedEditsMap.set(noteNumber, data);
   // 오래된 항목 정리
   if (unsavedEditsMap.size > MAX_UNSAVED) {
@@ -38,12 +39,19 @@ const useNoteEditor = ({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [syncedNoteNumber, setSyncedNoteNumber] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRef = useRef<{ title: string; content: string; noteNumber: number } | null>(null);
+  const pendingRef = useRef<{
+    title: string;
+    content: string;
+    noteNumber: number;
+  } | null>(null);
   const updateMutation = useUpdateNoteMutation();
   const queryClient = useQueryClient();
 
   // noteDetail 미로드 또는 pending/processing 중에는 PATCH 차단
-  const isBusy = !noteDetail || noteDetail.processing_status === "processing" || noteDetail.processing_status === "pending";
+  const isBusy =
+    !noteDetail ||
+    noteDetail.processing_status === "processing" ||
+    noteDetail.processing_status === "pending";
   const isBusyRef = useRef(isBusy);
   isBusyRef.current = isBusy;
 
@@ -102,14 +110,20 @@ const useNoteEditor = ({
     }
   }, [syncedNoteNumber, noteNumber]);
 
-  const save = (value: { title: string; content: string }, targetNoteNumber: number) => {
+  const save = (
+    value: { title: string; content: string },
+    targetNoteNumber: number,
+  ) => {
     if (targetNoteNumber <= 0) return;
     if (!value.title && !value.content) return;
 
     // busy 중이면 저장하지 않고 pending + unsavedEditsMap에 보관
     if (isBusyRef.current) {
       pendingRef.current = { ...value, noteNumber: targetNoteNumber };
-      addUnsaved(targetNoteNumber, { title: value.title, content: value.content });
+      addUnsaved(targetNoteNumber, {
+        title: value.title,
+        content: value.content,
+      });
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         if (pendingRef.current) {
@@ -140,14 +154,22 @@ const useNoteEditor = ({
             old => {
               if (!old) return old;
               // PATCH 성공 → 백엔드가 reprocess 트리거하므로 pending으로 설정
-              return { ...old, title: savedTitle || old.title, content: savedContent, processing_status: "pending" };
+              return {
+                ...old,
+                title: savedTitle || old.title,
+                content: savedContent,
+                processing_status: "pending",
+              };
             },
           );
         },
         onError: () => {
           setSaveStatus("error");
           // 실패 시 미저장 맵에 보관
-          addUnsaved(targetNoteNumber, { title: savedTitle, content: savedContent });
+          addUnsaved(targetNoteNumber, {
+            title: savedTitle,
+            content: savedContent,
+          });
         },
       },
     );
@@ -198,7 +220,12 @@ const useNoteEditor = ({
         const { title: t, content: c, noteNumber: n } = pendingRef.current;
         addUnsaved(n, { title: t, content: c });
         if (t || c) {
-          api.patch(`/api/v1/notes/${n}`, { title: t || undefined, content: c || " " }).catch(() => {});
+          api
+            .patch(`/api/v1/notes/${n}`, {
+              title: t || undefined,
+              content: c || " ",
+            })
+            .catch(() => {});
         }
       }
     };

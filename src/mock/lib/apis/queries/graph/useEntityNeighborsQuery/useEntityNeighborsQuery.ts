@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import graphKeys from "../keys";
 import type { EntityNeighborsResponse } from "./useEntityNeighborsQuery.type";
@@ -11,7 +10,11 @@ interface UseEntityNeighborsParams {
   limit?: number;
 }
 
-const fetchEntityNeighbors = async ({ uid, depth, limit }: UseEntityNeighborsParams) => {
+const fetchEntityNeighbors = async ({
+  uid,
+  depth,
+  limit,
+}: UseEntityNeighborsParams) => {
   const response = await api.get<EntityNeighborsResponse>(
     `/api/v1/graph/entities/${uid}/neighbors`,
     { params: { depth, limit } },

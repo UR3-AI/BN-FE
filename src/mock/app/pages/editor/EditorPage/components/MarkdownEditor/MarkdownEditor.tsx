@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { Block, BlockType, MarkdownEditorProps, NoteLinkItem, SlashMenuState } from "./MarkdownEditor.type";
-import { BLOCK_PREFIX, SLASH_COMMANDS, SLASH_MENU_INITIAL } from "./MarkdownEditor.constants";
+import {
+  BLOCK_PREFIX,
+  SLASH_COMMANDS,
+  SLASH_MENU_INITIAL,
+} from "./MarkdownEditor.constants";
+import type {
+  Block,
+  BlockType,
+  MarkdownEditorProps,
+  NoteLinkItem,
+  SlashMenuState,
+} from "./MarkdownEditor.type";
 import {
   blocksToMarkdown,
   detectBlockType,
@@ -26,7 +36,14 @@ const MarkdownEditor = ({
   // so it remounts and re-initializes state cleanly.
   const [blocks, setBlocks] = useState<Block[]>(() => {
     if (!value || value.trim() === "") {
-      return [{ id: generateId(), type: "paragraph" as BlockType, raw: "", indent: 0 }];
+      return [
+        {
+          id: generateId(),
+          type: "paragraph" as BlockType,
+          raw: "",
+          indent: 0,
+        },
+      ];
     }
     return parseMarkdown(value);
   });
@@ -65,13 +82,19 @@ const MarkdownEditor = ({
     }, 300);
   }, []);
 
-  const [slashMenu, setSlashMenu] = useState<SlashMenuState>(SLASH_MENU_INITIAL);
-  const [dragState, setDragState] = useState<{ dragging: number; over: number }>({
+  const [slashMenu, setSlashMenu] =
+    useState<SlashMenuState>(SLASH_MENU_INITIAL);
+  const [dragState, setDragState] = useState<{
+    dragging: number;
+    over: number;
+  }>({
     dragging: -1,
     over: -1,
   });
   const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
-  const [collapsedToggles, setCollapsedToggles] = useState<Set<string>>(new Set());
+  const [collapsedToggles, setCollapsedToggles] = useState<Set<string>>(
+    new Set(),
+  );
 
   const handleToggle = useCallback((blockId: string) => {
     setCollapsedToggles(prev => {
@@ -159,7 +182,8 @@ const MarkdownEditor = ({
         const updated = prev.map((b, i) => {
           if (i !== index) return b;
           // Table blocks keep their type (multi-line raw with \n)
-          const newType = b.type === "table" ? "table" : detectBlockType(raw.trim());
+          const newType =
+            b.type === "table" ? "table" : detectBlockType(raw.trim());
           return { ...b, raw, type: newType };
         });
         notifyChange(updated);
@@ -182,14 +206,24 @@ const MarkdownEditor = ({
         const indent = "  ".repeat(block.indent);
 
         // Update current block
-        const updatedCurrent: Block = { ...block, raw: indent + prefix + before };
+        const updatedCurrent: Block = {
+          ...block,
+          raw: indent + prefix + before,
+        };
 
         // Empty list/todo item -> convert to paragraph (no new block)
         if (
-          (block.type === "ul" || block.type === "ol" || block.type === "todo") &&
+          (block.type === "ul" ||
+            block.type === "ol" ||
+            block.type === "todo") &&
           before.trim() === ""
         ) {
-          const converted: Block = { ...block, type: "paragraph", raw: "", indent: 0 };
+          const converted: Block = {
+            ...block,
+            type: "paragraph",
+            raw: "",
+            indent: 0,
+          };
           const updated = prev.map((b, i) => (i === index ? converted : b));
           pendingFocusIndex.current = index;
           pendingFocusOffset.current = -1;
@@ -291,7 +325,9 @@ const MarkdownEditor = ({
     (index: number, shift: boolean) => {
       setBlocks(prev => {
         const block = prev[index];
-        const newIndent = shift ? Math.max(0, block.indent - 1) : block.indent + 1;
+        const newIndent = shift
+          ? Math.max(0, block.indent - 1)
+          : block.indent + 1;
         const oldIndentStr = "  ".repeat(block.indent);
         const newIndentStr = "  ".repeat(newIndent);
         const newRaw = block.raw.startsWith(oldIndentStr)
@@ -373,7 +409,9 @@ const MarkdownEditor = ({
         // 중간 + 마지막 줄을 parseMarkdown으로 파싱 (테이블/코드블록 그룹핑)
         const remainingText = lines.slice(1, -1).join("\n");
         const lastLineRaw = (lines[lines.length - 1] ?? "") + afterCaret;
-        const fullPasteText = remainingText ? remainingText + "\n" + lastLineRaw : lastLineRaw;
+        const fullPasteText = remainingText
+          ? remainingText + "\n" + lastLineRaw
+          : lastLineRaw;
         const parsedBlocks = parseMarkdown(fullPasteText);
 
         // 마지막 파싱 블록의 raw에 afterCaret가 포함되어 있음
@@ -410,8 +448,12 @@ const MarkdownEditor = ({
   const handleSlashInput = useCallback(
     (index: number, filter: string, anchorEl: HTMLDivElement) => {
       const rect = anchorEl.getBoundingClientRect();
-      const containerRect = anchorEl.closest(".markdown-editor-root")?.getBoundingClientRect();
-      const top = containerRect ? rect.bottom - containerRect.top + 4 : rect.bottom + 4;
+      const containerRect = anchorEl
+        .closest(".markdown-editor-root")
+        ?.getBoundingClientRect();
+      const top = containerRect
+        ? rect.bottom - containerRect.top + 4
+        : rect.bottom + 4;
       const left = containerRect ? rect.left - containerRect.left : rect.left;
 
       setSlashMenu({
@@ -483,7 +525,8 @@ const MarkdownEditor = ({
         const block = prev[blockIndex];
         const displayText = getDisplayText(block);
         const slashIdx = displayText.lastIndexOf("/");
-        const textBefore = slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
+        const textBefore =
+          slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
 
         // 코드블록은 멀티라인 블록으로 생성
         if (commandId === "code") {
@@ -498,7 +541,8 @@ const MarkdownEditor = ({
         }
 
         const newRaw = newPrefix + textBefore;
-        const newType = detectBlockType(newRaw.trim()) || ("paragraph" as BlockType);
+        const newType =
+          detectBlockType(newRaw.trim()) || ("paragraph" as BlockType);
 
         const updated = prev.map((b, i) =>
           i === blockIndex ? { ...b, raw: newRaw, type: newType } : b,
@@ -523,7 +567,8 @@ const MarkdownEditor = ({
         // Get text before slash to preserve it
         const displayText = getDisplayText(block);
         const slashIdx = displayText.lastIndexOf("/");
-        const textBefore = slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
+        const textBefore =
+          slashIdx !== -1 ? displayText.slice(0, slashIdx) : displayText;
 
         // If there's text before the slash, keep it as a paragraph; otherwise replace the block
         const newBlocks: Block[] = [];
@@ -580,15 +625,20 @@ const MarkdownEditor = ({
     blockRefs.current.length = blocks.length;
   }, [blocks.length]);
 
-  const isEmpty = blocks.length === 0 || (blocks.length === 1 && blocks[0].raw.trim() === "");
+  const isEmpty =
+    blocks.length === 0 || (blocks.length === 1 && blocks[0].raw.trim() === "");
 
   // ─── Note Link Menu Handlers ──────────────────────────────────────────────
 
   const handleNoteLinkInput = useCallback(
     (index: number, filter: string, anchorEl: HTMLDivElement) => {
       const rect = anchorEl.getBoundingClientRect();
-      const containerRect = anchorEl.closest(".markdown-editor-root")?.getBoundingClientRect();
-      const top = containerRect ? rect.bottom - containerRect.top + 4 : rect.bottom + 4;
+      const containerRect = anchorEl
+        .closest(".markdown-editor-root")
+        ?.getBoundingClientRect();
+      const top = containerRect
+        ? rect.bottom - containerRect.top + 4
+        : rect.bottom + 4;
       const left = containerRect ? rect.left - containerRect.left : rect.left;
       setNoteLinkMenu({
         open: true,
@@ -606,7 +656,10 @@ const MarkdownEditor = ({
   }, []);
 
   const handleNoteLinkArrowUp = useCallback(() => {
-    setNoteLinkMenu(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+    setNoteLinkMenu(prev => ({
+      ...prev,
+      selectedIndex: Math.max(0, prev.selectedIndex - 1),
+    }));
   }, []);
 
   const handleNoteLinkArrowDown = useCallback(() => {
@@ -664,27 +717,30 @@ const MarkdownEditor = ({
   const dragIndicesRef = useRef<number[]>([]);
   const lastClickedRef = useRef(-1);
 
-  const handleDragHandleClick = useCallback((index: number, e: React.MouseEvent) => {
-    if (e.shiftKey && lastClickedRef.current !== -1) {
-      // Shift+클릭: 범위 선택
-      const from = Math.min(lastClickedRef.current, index);
-      const to = Math.max(lastClickedRef.current, index);
-      const range = new Set<number>();
-      for (let i = from; i <= to; i++) range.add(i);
-      setSelectedBlocks(range);
-    } else if (e.metaKey || e.ctrlKey) {
-      // Cmd/Ctrl+클릭: 토글 선택
-      setSelectedBlocks(prev => {
-        const next = new Set(prev);
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-        return next;
-      });
-    } else {
-      setSelectedBlocks(new Set([index]));
-    }
-    lastClickedRef.current = index;
-  }, []);
+  const handleDragHandleClick = useCallback(
+    (index: number, e: React.MouseEvent) => {
+      if (e.shiftKey && lastClickedRef.current !== -1) {
+        // Shift+클릭: 범위 선택
+        const from = Math.min(lastClickedRef.current, index);
+        const to = Math.max(lastClickedRef.current, index);
+        const range = new Set<number>();
+        for (let i = from; i <= to; i++) range.add(i);
+        setSelectedBlocks(range);
+      } else if (e.metaKey || e.ctrlKey) {
+        // Cmd/Ctrl+클릭: 토글 선택
+        setSelectedBlocks(prev => {
+          const next = new Set(prev);
+          if (next.has(index)) next.delete(index);
+          else next.add(index);
+          return next;
+        });
+      } else {
+        setSelectedBlocks(new Set([index]));
+      }
+      lastClickedRef.current = index;
+    },
+    [],
+  );
 
   const handleDragStart = useCallback(
     (index: number) => {
@@ -699,7 +755,9 @@ const MarkdownEditor = ({
   );
 
   const handleDragOver = useCallback((index: number) => {
-    setDragState(prev => (prev.dragging === index ? prev : { ...prev, over: index }));
+    setDragState(prev =>
+      prev.dragging === index ? prev : { ...prev, over: index },
+    );
   }, []);
 
   const handleDrop = useCallback(
@@ -746,7 +804,8 @@ const MarkdownEditor = ({
 
       const isUndo = modifier && !e.shiftKey && e.key === "z";
       const isRedo =
-        (modifier && e.shiftKey && e.key === "z") || (modifier && !e.shiftKey && e.key === "y");
+        (modifier && e.shiftKey && e.key === "z") ||
+        (modifier && !e.shiftKey && e.key === "y");
 
       if (!isUndo && !isRedo) return;
 
@@ -830,7 +889,10 @@ const MarkdownEditor = ({
             let checkIndent = block.indent;
             for (let j = index - 1; j >= 0; j--) {
               if (blocks[j].indent < checkIndent) {
-                if (blocks[j].type === "toggle" && collapsedToggles.has(blocks[j].id)) {
+                if (
+                  blocks[j].type === "toggle" &&
+                  collapsedToggles.has(blocks[j].id)
+                ) {
                   return null;
                 }
                 checkIndent = blocks[j].indent;
@@ -847,7 +909,8 @@ const MarkdownEditor = ({
                   ? {
                       marginLeft: `${block.indent * 2.4}rem`,
                       paddingLeft: "1.2rem",
-                      borderLeft: "2px solid var(--color-outline-variant, #444)",
+                      borderLeft:
+                        "2px solid var(--color-outline-variant, #444)",
                     }
                   : undefined
               }
@@ -877,12 +940,36 @@ const MarkdownEditor = ({
                     height="14"
                     viewBox="0 0 10 14"
                     fill="currentColor">
-                    <circle cx="2.5" cy="2" r="1.2" />
-                    <circle cx="7.5" cy="2" r="1.2" />
-                    <circle cx="2.5" cy="7" r="1.2" />
-                    <circle cx="7.5" cy="7" r="1.2" />
-                    <circle cx="2.5" cy="12" r="1.2" />
-                    <circle cx="7.5" cy="12" r="1.2" />
+                    <circle
+                      cx="2.5"
+                      cy="2"
+                      r="1.2"
+                    />
+                    <circle
+                      cx="7.5"
+                      cy="2"
+                      r="1.2"
+                    />
+                    <circle
+                      cx="2.5"
+                      cy="7"
+                      r="1.2"
+                    />
+                    <circle
+                      cx="7.5"
+                      cy="7"
+                      r="1.2"
+                    />
+                    <circle
+                      cx="2.5"
+                      cy="12"
+                      r="1.2"
+                    />
+                    <circle
+                      cx="7.5"
+                      cy="12"
+                      r="1.2"
+                    />
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -898,9 +985,13 @@ const MarkdownEditor = ({
                     onTab={shift => handleTab(index, shift)}
                     onArrowUp={() => handleArrowUp(index)}
                     onArrowDown={() => handleArrowDown(index)}
-                    onSlashInput={(filter, anchorEl) => handleSlashInput(index, filter, anchorEl)}
+                    onSlashInput={(filter, anchorEl) =>
+                      handleSlashInput(index, filter, anchorEl)
+                    }
                     onSlashClose={handleSlashClose}
-                    isSlashOpen={slashMenu.open && slashMenu.blockIndex === index}
+                    isSlashOpen={
+                      slashMenu.open && slashMenu.blockIndex === index
+                    }
                     onSlashArrowUp={handleSlashArrowUp}
                     onSlashArrowDown={handleSlashArrowDown}
                     onSlashEnter={handleSlashEnter}
@@ -908,7 +999,9 @@ const MarkdownEditor = ({
                       handleNoteLinkInput(index, filter, anchorEl)
                     }
                     onNoteLinkClose={handleNoteLinkClose}
-                    isNoteLinkOpen={noteLinkMenu.open && noteLinkMenu.blockIndex === index}
+                    isNoteLinkOpen={
+                      noteLinkMenu.open && noteLinkMenu.blockIndex === index
+                    }
                     onNoteLinkArrowUp={handleNoteLinkArrowUp}
                     onNoteLinkArrowDown={handleNoteLinkArrowDown}
                     onNoteLinkEnter={handleNoteLinkEnter}
@@ -931,8 +1024,12 @@ const MarkdownEditor = ({
           filter={slashMenu.filter}
           selectedIndex={slashMenu.selectedIndex}
           position={slashMenu.position}
-          onSelect={commandId => applySlashCommand(commandId, slashMenu.blockIndex)}
-          onTableSelect={(rows, cols) => applyTableCommand(rows, cols, slashMenu.blockIndex)}
+          onSelect={commandId =>
+            applySlashCommand(commandId, slashMenu.blockIndex)
+          }
+          onTableSelect={(rows, cols) =>
+            applyTableCommand(rows, cols, slashMenu.blockIndex)
+          }
         />
       )}
 
@@ -941,14 +1038,22 @@ const MarkdownEditor = ({
         notesList.length > 0 &&
         (() => {
           const filtered = notesList.filter(n =>
-            (n.title ?? "").toLowerCase().includes(noteLinkMenu.filter.toLowerCase()),
+            (n.title ?? "")
+              .toLowerCase()
+              .includes(noteLinkMenu.filter.toLowerCase()),
           );
           if (filtered.length === 0) return null;
-          const selectedIdx = Math.min(noteLinkMenu.selectedIndex, filtered.length - 1);
+          const selectedIdx = Math.min(
+            noteLinkMenu.selectedIndex,
+            filtered.length - 1,
+          );
           return (
             <div
               className="absolute z-50 min-w-[24rem] max-h-[24rem] overflow-y-auto rounded-[0.5rem] border border-outline-variant/10 bg-surface-container-highest shadow-xl"
-              style={{ top: noteLinkMenu.position.top, left: noteLinkMenu.position.left }}>
+              style={{
+                top: noteLinkMenu.position.top,
+                left: noteLinkMenu.position.left,
+              }}>
               <div className="px-[1.2rem] py-[0.6rem] text-[1rem] font-bold uppercase tracking-[0.15em] text-on-surface-variant/50">
                 Link to note
               </div>
@@ -966,7 +1071,9 @@ const MarkdownEditor = ({
                   }}>
                   <span className="text-[1.2rem]">📝</span>
                   <div>
-                    <div className="text-[1.3rem] font-medium">{note.title ?? "Untitled"}</div>
+                    <div className="text-[1.3rem] font-medium">
+                      {note.title ?? "Untitled"}
+                    </div>
                     <div className="text-[1.1rem] text-on-surface-variant/50">
                       Note #{note.note_number}
                     </div>

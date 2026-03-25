@@ -1,10 +1,10 @@
 import { SECOND } from "@lib/constants";
 import { useAuthStore } from "@lib/stores";
 
+import { refreshTokenAsync } from "../services";
+
 import type { AxiosError } from "axios";
 import axios from "axios";
-
-import { refreshTokenAsync } from "../services";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8000",

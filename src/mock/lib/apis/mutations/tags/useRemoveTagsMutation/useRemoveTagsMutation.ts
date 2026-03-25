@@ -1,8 +1,10 @@
+import { api } from "@lib/apis/axios";
 import { useMutation } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
-import type { RemoveTagsRequest, RemoveTagsResponse } from "./useRemoveTagsMutation.type";
+import type {
+  RemoveTagsRequest,
+  RemoveTagsResponse,
+} from "./useRemoveTagsMutation.type";
 
 const removeTags = async ({ noteNumber, tags }: RemoveTagsRequest) => {
   const response = await api.delete<RemoveTagsResponse>(

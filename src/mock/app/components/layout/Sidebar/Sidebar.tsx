@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-
 import { NavLink } from "react-router-dom";
 
 import {
@@ -40,7 +39,15 @@ const MIN_WIDTH = 64;
 const MAX_WIDTH = 400;
 const COLLAPSE_THRESHOLD = 120;
 
-const TreeNode = ({ node, depth = 0, collapsed }: { node: ProjectTreeNode; depth?: number; collapsed: boolean }) => {
+const TreeNode = ({
+  node,
+  depth = 0,
+  collapsed,
+}: {
+  node: ProjectTreeNode;
+  depth?: number;
+  collapsed: boolean;
+}) => {
   const [expanded, setExpanded] = useState(false);
   const hasChildren = node.children.length > 0;
 
@@ -98,7 +105,10 @@ const Sidebar = () => {
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
-      dragRef.current = { startX: e.clientX, startW: collapsed ? COLLAPSED_WIDTH : sidebarWidth };
+      dragRef.current = {
+        startX: e.clientX,
+        startW: collapsed ? COLLAPSED_WIDTH : sidebarWidth,
+      };
     },
     [sidebarWidth, collapsed],
   );
@@ -130,7 +140,8 @@ const Sidebar = () => {
         className="flex flex-col overflow-hidden bg-surface-container-low py-[3.2rem] font-body text-[1.4rem] tracking-wide transition-[width] duration-150"
         style={{ width: `${effectiveWidth}px` }}>
         {/* Header */}
-        <div className={`mb-[4rem] ${collapsed ? "px-[0.8rem]" : "px-[3.2rem]"}`}>
+        <div
+          className={`mb-[4rem] ${collapsed ? "px-[0.8rem]" : "px-[3.2rem]"}`}>
           {collapsed ? (
             <button
               type="button"
@@ -238,7 +249,9 @@ const Sidebar = () => {
                 }`
               }>
               <Icon size="2rem" />
-              {!collapsed && <span className="truncate text-[1.2rem]">{label}</span>}
+              {!collapsed && (
+                <span className="truncate text-[1.2rem]">{label}</span>
+              )}
             </NavLink>
           ))}
         </div>

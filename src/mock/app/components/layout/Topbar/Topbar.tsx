@@ -54,10 +54,16 @@ const Topbar = ({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
-      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+      if (
+        accountRef.current &&
+        !accountRef.current.contains(e.target as Node)
+      ) {
         setShowAccountMenu(false);
       }
     };
@@ -115,10 +121,7 @@ const Topbar = ({
                   key={item.label}
                   className="flex items-center gap-[0.8rem]">
                   {i > 0 && <ChevronRightIcon size="1.2rem" />}
-                  <span
-                    className={
-                      item.active ? "text-on-surface" : ""
-                    }>
+                  <span className={item.active ? "text-on-surface" : ""}>
                     {item.label}
                   </span>
                 </span>
@@ -183,7 +186,9 @@ const Topbar = ({
           {isOpen && (
             <div className="absolute right-0 mt-[0.4rem] w-[36rem] rounded-[0.5rem] border border-outline-variant/20 bg-surface-container shadow-lg">
               <div className="flex items-center justify-between border-b border-outline-variant/10 px-[1.6rem] py-[1.2rem]">
-                <h3 className="text-[1.3rem] font-bold text-on-surface">Notifications</h3>
+                <h3 className="text-[1.3rem] font-bold text-on-surface">
+                  Notifications
+                </h3>
                 {hasUnread && (
                   <button
                     type="button"
@@ -204,7 +209,12 @@ const Topbar = ({
                     <button
                       key={notification.id}
                       type="button"
-                      onClick={() => handleReadNotification(notification.id, notification.is_read)}
+                      onClick={() =>
+                        handleReadNotification(
+                          notification.id,
+                          notification.is_read,
+                        )
+                      }
                       className={`w-full px-[1.6rem] py-[1.2rem] text-left transition-colors hover:bg-surface-container-high ${
                         !notification.is_read ? "bg-primary/5" : ""
                       }`}>
@@ -212,7 +222,8 @@ const Topbar = ({
                         {!notification.is_read && (
                           <span className="mt-[0.6rem] h-[0.6rem] w-[0.6rem] shrink-0 rounded-full bg-primary" />
                         )}
-                        <div className={notification.is_read ? "pl-[1.8rem]" : ""}>
+                        <div
+                          className={notification.is_read ? "pl-[1.8rem]" : ""}>
                           <p className="text-[1.2rem] font-semibold text-on-surface">
                             {notification.title}
                           </p>

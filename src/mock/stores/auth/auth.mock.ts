@@ -1,6 +1,4 @@
-import type {
-  AuthState,
-} from "@lib/stores/useAuthStore/useAuthStore.type";
+import type { AuthState } from "@lib/stores/useAuthStore/useAuthStore.type";
 
 export const mockAuthenticatedState: AuthState = {
   accessToken: "mock-access-token-xyz",

@@ -1,5 +1,5 @@
-import type { Block, BlockType } from "./MarkdownEditor.type";
 import { BLOCK_PATTERNS } from "./MarkdownEditor.constants";
+import type { Block, BlockType } from "./MarkdownEditor.type";
 
 // ─── ID ────────────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,8 @@ export const getIndent = (raw: string): number => {
   return Math.floor(match[1].length / 2);
 };
 
-export const isTableRow = (line: string): boolean => /^\|.+\|$/.test(line.trim());
+export const isTableRow = (line: string): boolean =>
+  /^\|.+\|$/.test(line.trim());
 
 // ─── Markdown Parsing ──────────────────────────────────────────────────────────
 
@@ -84,7 +85,11 @@ export const blocksToMarkdown = (blocks: Block[]): string => {
 export const sanitizeUrl = (url: string): string => {
   const trimmed = url.trim();
   const lower = trimmed.toLowerCase();
-  if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("/")) {
+  if (
+    lower.startsWith("http://") ||
+    lower.startsWith("https://") ||
+    lower.startsWith("/")
+  ) {
     return trimmed;
   }
   return "";
@@ -142,7 +147,10 @@ export const applyInlineFormatting = (text: string): string => {
           .replace(/"/g, "&quot;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
-        const escapedLabel = label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const escapedLabel = label
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
         return `<a href="${escapedUrl}" class="inline-link">${escapedLabel}</a>`;
       })
   );
@@ -162,26 +170,31 @@ export const htmlToMarkdownInline = (html: string): string => {
       .replace(/<mark[^>]*>(.*?)<\/mark>/g, "==$1==");
     if (result === prev) break;
   }
-  return result
-    .replace(/<code[^>]*>([^<]*)<\/code>/g, "`$1`")
-    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/g, "![$2]($1)")
-    // note link → [[Note #N|title]]
-    .replace(/<a[^>]*data-note="(\d+)"[^>]*>[^<]*<\/a>/g, (_, num) => {
-      // Try to extract title from the visible text
-      const titleMatch = _.match(/>📝\s*(.+?)<\/a>/);
-      const title = titleMatch ? titleMatch[1] : "";
-      const isDefault = title === `Note #${num}`;
-      return isDefault ? `[[Note #${num}]]` : `[[Note #${num}|${title}]]`;
-    })
-    .replace(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g, "[$2]($1)")
-    .replace(/<br\s*\/?>/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\u00A0/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"');
+  return (
+    result
+      .replace(/<code[^>]*>([^<]*)<\/code>/g, "`$1`")
+      .replace(
+        /<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/g,
+        "![$2]($1)",
+      )
+      // note link → [[Note #N|title]]
+      .replace(/<a[^>]*data-note="(\d+)"[^>]*>[^<]*<\/a>/g, (_, num) => {
+        // Try to extract title from the visible text
+        const titleMatch = _.match(/>📝\s*(.+?)<\/a>/);
+        const title = titleMatch ? titleMatch[1] : "";
+        const isDefault = title === `Note #${num}`;
+        return isDefault ? `[[Note #${num}]]` : `[[Note #${num}|${title}]]`;
+      })
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g, "[$2]($1)")
+      .replace(/<br\s*\/?>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\u00A0/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+  );
 };
 
 // ─── Block Display ─────────────────────────────────────────────────────────────
@@ -218,7 +231,10 @@ export const getDisplayText = (block: Block): string => {
       const codeLines = block.raw.split("\n");
       if (codeLines.length >= 2) {
         return codeLines
-          .slice(1, codeLines[codeLines.length - 1].trim() === "```" ? -1 : undefined)
+          .slice(
+            1,
+            codeLines[codeLines.length - 1].trim() === "```" ? -1 : undefined,
+          )
           .join("\n");
       }
       return raw.replace(/^```/, "").replace(/```$/, "");
@@ -261,7 +277,10 @@ export const getBlockClassName = (block: Block): string => {
 
 // ─── Caret / Offset Helpers ────────────────────────────────────────────────────
 
-export const mapVisibleToMarkdownOffset = (mdText: string, visibleOffset: number): number => {
+export const mapVisibleToMarkdownOffset = (
+  mdText: string,
+  visibleOffset: number,
+): number => {
   // Strip markdown syntax to get visible text, then map offset back
   const visible = mdText
     .replace(/\[\[Note #(\d+)\|([^\]]*)\]\]/g, "📝 $2")
@@ -365,4 +384,3 @@ export const generateTableMarkdown = (rows: number, cols: number): string[] => {
   const dataRows = Array.from({ length: Math.max(1, rows - 1) }, () => dataRow);
   return [header, separator, ...dataRows];
 };
-

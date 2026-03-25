@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import graphKeys from "../keys";
 import type { EntityMentionsResponse } from "./useEntityMentionsQuery.type";

@@ -1,11 +1,16 @@
+import { api } from "@lib/apis/axios";
 import { useMutation } from "@tanstack/react-query";
 
-import { api } from "@lib/apis/axios";
-
-import type { RenameTagRequest, RenameTagResponse } from "./useRenameTagMutation.type";
+import type {
+  RenameTagRequest,
+  RenameTagResponse,
+} from "./useRenameTagMutation.type";
 
 const renameTag = async (data: RenameTagRequest) => {
-  const response = await api.post<RenameTagResponse>("/api/v1/tags/rename", data);
+  const response = await api.post<RenameTagResponse>(
+    "/api/v1/tags/rename",
+    data,
+  );
   return response.data;
 };
 

@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import notesKeys from "../keys";
 import type { AttachmentsResponse } from "./useAttachmentsQuery.type";

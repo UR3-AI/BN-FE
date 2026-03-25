@@ -1,12 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useQuery } from "@tanstack/react-query";
 
 import notificationKeys from "../keys";
 import type { UnreadCountResponse } from "./useUnreadCountQuery.type";
 
 const fetchUnreadCount = async () => {
-  const response = await api.get<UnreadCountResponse>("/api/v1/notifications/unread-count");
+  const response = await api.get<UnreadCountResponse>(
+    "/api/v1/notifications/unread-count",
+  );
 
   return response.data;
 };

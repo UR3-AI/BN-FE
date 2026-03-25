@@ -1,29 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { useNavigate } from "react-router-dom";
-
-import {
-  ReactFlow,
-  Controls,
-  Background,
-  BackgroundVariant,
-  Handle,
-  Position,
-  useNodesState,
-  useEdgesState,
-  useReactFlow,
-  ReactFlowProvider,
-} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import {
-  forceSimulation,
-  forceLink,
-  forceManyBody,
-  forceCenter,
-  forceCollide,
-} from "d3-force";
-import type { SimulationNodeDatum, SimulationLinkDatum } from "d3-force";
-import { useQueryClient } from "@tanstack/react-query";
+
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   CloseIcon,
@@ -43,9 +21,31 @@ import useEntityNeighborsQuery from "@/mock/lib/apis/queries/graph/useEntityNeig
 import useGraphStatsQuery from "@/mock/lib/apis/queries/graph/useGraphStatsQuery/useGraphStatsQuery";
 import useGraphVisualizationQuery from "@/mock/lib/apis/queries/graph/useGraphVisualizationQuery/useGraphVisualizationQuery";
 import type {
-  GraphNode as ApiGraphNode,
   GraphEdge as ApiGraphEdge,
+  GraphNode as ApiGraphNode,
 } from "@/mock/lib/apis/queries/graph/useGraphVisualizationQuery/useGraphVisualizationQuery.type";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  Handle,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+} from "@xyflow/react";
+
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+} from "d3-force";
+import type { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
@@ -87,8 +87,16 @@ const calculateForceLayout = (
     return {
       id: n.id,
       // 이웃은 가까이, 나머지는 멀리 초기화
-      x: isCenter ? 0 : isNeighbor ? (Math.random() - 0.5) * 200 : (Math.random() - 0.5) * 400,
-      y: isCenter ? 0 : isNeighbor ? (Math.random() - 0.5) * 200 : (Math.random() - 0.5) * 400,
+      x: isCenter
+        ? 0
+        : isNeighbor
+          ? (Math.random() - 0.5) * 200
+          : (Math.random() - 0.5) * 400,
+      y: isCenter
+        ? 0
+        : isNeighbor
+          ? (Math.random() - 0.5) * 200
+          : (Math.random() - 0.5) * 400,
       ...(isCenter ? { fx: 0, fy: 0 } : {}),
     };
   });
@@ -99,8 +107,17 @@ const calculateForceLayout = (
 
   const n = nodes.length;
   const simulation = forceSimulation<SimNode>(simNodes)
-    .force("link", forceLink<SimNode, SimulationLinkDatum<SimNode>>(simLinks).id(d => d.id).distance(250).strength(0.6))
-    .force("charge", forceManyBody<SimNode>().strength(n > 30 ? -800 : n > 15 ? -1200 : -1600))
+    .force(
+      "link",
+      forceLink<SimNode, SimulationLinkDatum<SimNode>>(simLinks)
+        .id(d => d.id)
+        .distance(250)
+        .strength(0.6),
+    )
+    .force(
+      "charge",
+      forceManyBody<SimNode>().strength(n > 30 ? -800 : n > 15 ? -1200 : -1600),
+    )
     .force("center", forceCenter<SimNode>(0, 0).strength(0.08))
     .force("collide", forceCollide<SimNode>(130).strength(0.9))
     .stop();
@@ -134,10 +151,20 @@ const EntityNode = memo(({ data }: { data: EntityNodeData }) => {
   const dotSize = isCenter ? 72 : isNeighbor ? 56 : 32;
 
   return (
-    <div className="flex flex-col items-center" style={{ position: "relative" }}>
+    <div
+      className="flex flex-col items-center"
+      style={{ position: "relative" }}>
       {/* Handles for edge connections */}
-      <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 1, height: 1 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 1, height: 1 }} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ opacity: 0, width: 1, height: 1 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ opacity: 0, width: 1, height: 1 }}
+      />
 
       <div
         className="flex items-center justify-center rounded-full"
@@ -173,7 +200,12 @@ const EntityNode = memo(({ data }: { data: EntityNodeData }) => {
         {data.label}
       </span>
       {isCenter && (
-        <span style={{ fontSize: 24, color: `${color}99`, textTransform: "capitalize" as const }}>
+        <span
+          style={{
+            fontSize: 24,
+            color: `${color}99`,
+            textTransform: "capitalize" as const,
+          }}>
           {data.entityType}
         </span>
       )}
@@ -205,7 +237,8 @@ const GraphInner = ({
 
   // Force layout 계산
   const positions = useMemo(
-    () => calculateForceLayout(apiNodes, apiEdges, selectedUid || apiNodes[0]?.id),
+    () =>
+      calculateForceLayout(apiNodes, apiEdges, selectedUid || apiNodes[0]?.id),
     [apiNodes, apiEdges, selectedUid],
   );
 
@@ -309,16 +342,21 @@ const GraphPage = () => {
   const [mergeTarget, setMergeTarget] = useState<string>("");
   const [editingName, setEditingName] = useState<string | null>(null);
 
-  const { data: vizData, isLoading: isVizLoading } = useGraphVisualizationQuery(50);
+  const { data: vizData, isLoading: isVizLoading } =
+    useGraphVisualizationQuery(50);
   const { data: statsData } = useGraphStatsQuery();
-  const { data: entityDetail, isLoading: isDetailLoading } = useEntityDetailQuery(selectedUid);
+  const { data: entityDetail, isLoading: isDetailLoading } =
+    useEntityDetailQuery(selectedUid);
   const { data: neighborsData } = useEntityNeighborsQuery({ uid: selectedUid });
   const { data: mentionsData } = useEntityMentionsQuery(selectedUid);
   const deleteEntityMutation = useDeleteEntityMutation();
   const mergeEntitiesMutation = useMergeEntitiesMutation();
   const updateEntityMutation = useUpdateEntityMutation();
 
-  const neighborIds = useMemo(() => new Set(neighborsData?.nodes.map(n => n.id) ?? []), [neighborsData]);
+  const neighborIds = useMemo(
+    () => new Set(neighborsData?.nodes.map(n => n.id) ?? []),
+    [neighborsData],
+  );
   const mentions = mentionsData?.mentions ?? [];
 
   // 첫 로드 시 hub entity 자동 선택
@@ -336,7 +374,10 @@ const GraphPage = () => {
   const handleDeleteEntity = () => {
     if (!selectedUid || !window.confirm("Delete this entity?")) return;
     deleteEntityMutation.mutate(selectedUid, {
-      onSuccess: () => { setSelectedUid(""); queryClient.invalidateQueries({ queryKey: ["graph"] }); },
+      onSuccess: () => {
+        setSelectedUid("");
+        queryClient.invalidateQueries({ queryKey: ["graph"] });
+      },
     });
   };
 
@@ -345,7 +386,13 @@ const GraphPage = () => {
     if (!window.confirm("Merge selected entity into target?")) return;
     mergeEntitiesMutation.mutate(
       { source_uid: selectedUid, target_uid: mergeTarget },
-      { onSuccess: d => { setSelectedUid(d.merged_uid); setMergeTarget(""); queryClient.invalidateQueries({ queryKey: ["graph"] }); } },
+      {
+        onSuccess: d => {
+          setSelectedUid(d.merged_uid);
+          setMergeTarget("");
+          queryClient.invalidateQueries({ queryKey: ["graph"] });
+        },
+      },
     );
   };
 
@@ -353,7 +400,12 @@ const GraphPage = () => {
     if (!selectedUid || editingName === null || !editingName.trim()) return;
     updateEntityMutation.mutate(
       { uid: selectedUid, name: editingName.trim() },
-      { onSuccess: () => { setEditingName(null); queryClient.invalidateQueries({ queryKey: ["graph"] }); } },
+      {
+        onSuccess: () => {
+          setEditingName(null);
+          queryClient.invalidateQueries({ queryKey: ["graph"] });
+        },
+      },
     );
   };
 
@@ -379,10 +431,13 @@ const GraphPage = () => {
 
           {/* Stats + Title overlay */}
           <div className="pointer-events-none absolute top-[2rem] left-[2rem] z-10">
-            <h2 className="font-headline text-[1.8rem] font-bold text-on-surface">Knowledge Graph</h2>
+            <h2 className="font-headline text-[1.8rem] font-bold text-on-surface">
+              Knowledge Graph
+            </h2>
             {statsData && (
               <p className="text-[1.2rem] text-on-surface-variant/60">
-                {statsData.total_entities} entities · {statsData.total_relationships} relationships
+                {statsData.total_entities} entities ·{" "}
+                {statsData.total_relationships} relationships
               </p>
             )}
           </div>
@@ -394,9 +449,16 @@ const GraphPage = () => {
             </span>
             <div className="space-y-[0.4rem]">
               {Object.entries(ENTITY_TYPE_COLORS).map(([type, color]) => (
-                <div key={type} className="flex items-center gap-[0.8rem]">
-                  <span className="inline-block h-[1rem] w-[1rem] rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-[1.1rem] capitalize text-on-surface-variant">{type}</span>
+                <div
+                  key={type}
+                  className="flex items-center gap-[0.8rem]">
+                  <span
+                    className="inline-block h-[1rem] w-[1rem] rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-[1.1rem] capitalize text-on-surface-variant">
+                    {type}
+                  </span>
                 </div>
               ))}
             </div>
@@ -407,7 +469,9 @@ const GraphPage = () => {
             <button
               type="button"
               onClick={handleMerge}
-              disabled={!selectedUid || !mergeTarget || mergeEntitiesMutation.isPending}
+              disabled={
+                !selectedUid || !mergeTarget || mergeEntitiesMutation.isPending
+              }
               className="flex items-center gap-[0.6rem] rounded-[0.25rem] px-[1.2rem] py-[0.4rem] text-[1.2rem] font-semibold transition-colors hover:bg-surface-container disabled:opacity-30">
               <MergeIcon size="1.4rem" />
               Merge
@@ -428,8 +492,15 @@ const GraphPage = () => {
         <aside className="w-[32rem] shrink-0 overflow-y-auto border-l border-outline-variant/10 bg-surface-container-low">
           <div className="p-[2.4rem]">
             <div className="mb-[3.2rem] flex items-center justify-between">
-              <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-outline">Entity Details</span>
-              <button type="button" onClick={() => { setSelectedUid(""); setMergeTarget(""); }}
+              <span className="text-[1rem] font-bold uppercase tracking-[0.15em] text-outline">
+                Entity Details
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedUid("");
+                  setMergeTarget("");
+                }}
                 className="rounded-[0.125rem] p-[0.4rem] transition-colors hover:bg-surface-container-highest">
                 <CloseIcon size="1.8rem" />
               </button>
@@ -437,8 +508,14 @@ const GraphPage = () => {
 
             {!selectedUid && (
               <div className="flex flex-col items-center py-[8rem] text-center">
-                <SparklesIcon size="4rem" fill="#9c8f78" className="mb-[1.6rem] opacity-40" />
-                <p className="text-[1.4rem] text-on-surface-variant">Click a node to view details</p>
+                <SparklesIcon
+                  size="4rem"
+                  fill="#9c8f78"
+                  className="mb-[1.6rem] opacity-40"
+                />
+                <p className="text-[1.4rem] text-on-surface-variant">
+                  Click a node to view details
+                </p>
               </div>
             )}
 
@@ -453,24 +530,40 @@ const GraphPage = () => {
                 {/* Entity Info */}
                 <div className="mb-[3.2rem]">
                   <div className="mb-[1.6rem] flex items-start gap-[1.6rem]">
-                    <div className="flex h-[4.8rem] w-[4.8rem] items-center justify-center rounded-[0.5rem]"
-                      style={{ backgroundColor: `${getNodeColor(entityDetail.type)}20` }}>
-                      <PsychologyIcon size="2.4rem" fill={getNodeColor(entityDetail.type)} />
+                    <div
+                      className="flex h-[4.8rem] w-[4.8rem] items-center justify-center rounded-[0.5rem]"
+                      style={{
+                        backgroundColor: `${getNodeColor(entityDetail.type)}20`,
+                      }}>
+                      <PsychologyIcon
+                        size="2.4rem"
+                        fill={getNodeColor(entityDetail.type)}
+                      />
                     </div>
                     <div className="flex-1">
                       {editingName !== null ? (
-                        <input type="text" value={editingName}
+                        <input
+                          type="text"
+                          value={editingName}
                           onChange={e => setEditingName(e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingName(null); }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") handleRename();
+                            if (e.key === "Escape") setEditingName(null);
+                          }}
                           className="w-full rounded-[0.25rem] border border-outline-variant/20 bg-surface-container-highest px-[0.8rem] py-[0.4rem] text-[1.6rem] font-bold text-on-surface focus:border-primary focus:outline-none"
-                          autoFocus />
+                          autoFocus
+                        />
                       ) : (
-                        <h3 className="cursor-pointer font-headline text-[2rem] font-bold text-on-surface hover:text-primary"
+                        <h3
+                          className="cursor-pointer font-headline text-[2rem] font-bold text-on-surface hover:text-primary"
                           onClick={() => setEditingName(entityDetail.name)}>
                           {entityDetail.name}
                         </h3>
                       )}
-                      <p className="text-[1.2rem] text-secondary">{entityDetail.type} · {entityDetail.mention_count} mentions</p>
+                      <p className="text-[1.2rem] text-secondary">
+                        {entityDetail.type} · {entityDetail.mention_count}{" "}
+                        mentions
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -478,15 +571,27 @@ const GraphPage = () => {
                 {/* Relationships */}
                 {entityDetail.related_entities.length > 0 && (
                   <div className="mb-[3.2rem]">
-                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">Relationships</h4>
+                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">
+                      Relationships
+                    </h4>
                     <div className="space-y-[0.8rem]">
                       {entityDetail.related_entities.map(rel => (
-                        <button key={rel.uid} type="button" onClick={() => setSelectedUid(rel.uid)}
+                        <button
+                          key={rel.uid}
+                          type="button"
+                          onClick={() => setSelectedUid(rel.uid)}
                           className="flex w-full items-center gap-[1.2rem] rounded-[0.25rem] border border-outline-variant/10 bg-surface-container-highest/50 p-[1.2rem] text-left transition-colors hover:bg-surface-container-highest">
-                          <LinkIcon size="1.4rem" className="shrink-0 text-secondary" />
+                          <LinkIcon
+                            size="1.4rem"
+                            className="shrink-0 text-secondary"
+                          />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[1.3rem] font-medium text-on-surface">{rel.name}</p>
-                            <p className="text-[1rem] text-outline">{rel.relationship_type} · {rel.type}</p>
+                            <p className="truncate text-[1.3rem] font-medium text-on-surface">
+                              {rel.name}
+                            </p>
+                            <p className="text-[1rem] text-outline">
+                              {rel.relationship_type} · {rel.type}
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -497,13 +602,23 @@ const GraphPage = () => {
                 {/* Linked Notes */}
                 {entityDetail.notes.length > 0 && (
                   <div className="mb-[3.2rem]">
-                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">Linked Notes</h4>
+                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">
+                      Linked Notes
+                    </h4>
                     <div className="space-y-[0.8rem]">
                       {entityDetail.notes.map(note => (
-                        <button key={note.note_number} type="button"
-                          onClick={() => navigate("/", { state: { noteNumber: note.note_number } })}
+                        <button
+                          key={note.note_number}
+                          type="button"
+                          onClick={() =>
+                            navigate("/", {
+                              state: { noteNumber: note.note_number },
+                            })
+                          }
                           className="flex w-full items-center gap-[1.2rem] rounded-[0.25rem] p-[1rem] text-left transition-colors hover:bg-surface-container">
-                          <span className="text-[1.3rem] font-medium text-primary">{note.title ?? `Note #${note.note_number}`}</span>
+                          <span className="text-[1.3rem] font-medium text-primary">
+                            {note.title ?? `Note #${note.note_number}`}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -513,14 +628,26 @@ const GraphPage = () => {
                 {/* Mentions */}
                 {mentions.length > 0 && (
                   <div>
-                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">Mentions</h4>
+                    <h4 className="mb-[1.6rem] text-[1.2rem] font-bold uppercase tracking-[0.15em] text-outline">
+                      Mentions
+                    </h4>
                     <div className="space-y-[0.8rem]">
                       {mentions.map(m => (
-                        <button key={m.note_number} type="button"
-                          onClick={() => navigate("/", { state: { noteNumber: m.note_number } })}
+                        <button
+                          key={m.note_number}
+                          type="button"
+                          onClick={() =>
+                            navigate("/", {
+                              state: { noteNumber: m.note_number },
+                            })
+                          }
                           className="w-full rounded-[0.25rem] bg-surface-container/50 p-[1.2rem] text-left transition-colors hover:bg-surface-container">
-                          <p className="text-[1.2rem] font-medium text-on-surface">{m.title ?? `Note #${m.note_number}`}</p>
-                          <p className="mt-[0.4rem] line-clamp-2 text-[1.1rem] text-on-surface-variant/60">{m.snippet}</p>
+                          <p className="text-[1.2rem] font-medium text-on-surface">
+                            {m.title ?? `Note #${m.note_number}`}
+                          </p>
+                          <p className="mt-[0.4rem] line-clamp-2 text-[1.1rem] text-on-surface-variant/60">
+                            {m.snippet}
+                          </p>
                         </button>
                       ))}
                     </div>

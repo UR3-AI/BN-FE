@@ -1,6 +1,5 @@
-import { useMutation } from "@tanstack/react-query";
-
 import { api } from "@lib/apis/axios";
+import { useMutation } from "@tanstack/react-query";
 
 import type {
   RegisterDeviceRequest,
@@ -8,7 +7,10 @@ import type {
 } from "./useRegisterDeviceMutation.type";
 
 const registerDevice = async (data: RegisterDeviceRequest) => {
-  const response = await api.post<RegisterDeviceResponse>("/api/v1/notifications/devices", data);
+  const response = await api.post<RegisterDeviceResponse>(
+    "/api/v1/notifications/devices",
+    data,
+  );
   return response.data;
 };
 
