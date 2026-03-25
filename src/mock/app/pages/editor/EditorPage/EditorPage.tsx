@@ -59,6 +59,10 @@ const EditorPage = () => {
   const { title, content, saveStatus, onTitleChange, onContentChange, flush } = useNoteEditor({
     noteDetail,
     noteNumber: selectedNoteNumber,
+    onSaveSuccess: (num) => {
+      // PATCH 성공 → 백엔드 reprocess 시작 → SSE 재구독
+      subscribeNoteStream(num);
+    },
   });
 
   const handleSelectNote = (noteNumber: number) => {

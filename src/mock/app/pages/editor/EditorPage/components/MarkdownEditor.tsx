@@ -151,12 +151,21 @@ const applyInlineFormatting = (text: string): string => {
       .replace(/\[\[Note #(\d+)\]\]/g, (_match, num) => {
         return `<a href="#note-${num}" class="note-link" data-note="${num}">📝 Note #${num}</a>`;
       })
+      // image ![alt](src)
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+        const safe = sanitizeUrl(src);
+        if (!safe) return alt || "image";
+        const escapedSrc = safe.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        const escapedAlt = (alt || "image").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<img src="${escapedSrc}" alt="${escapedAlt}" class="inline-image" />`;
+      })
       // link (with URL sanitization + attribute escaping)
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
         const safe = sanitizeUrl(url);
         if (!safe) return label;
-        const escaped = safe.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        return `<a href="${escaped}" class="inline-link">${label}</a>`;
+        const escapedUrl = safe.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const escapedLabel = label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<a href="${escapedUrl}" class="inline-link">${escapedLabel}</a>`;
       })
   );
 };
@@ -597,6 +606,7 @@ interface BlockEditorProps {
   onChange: (raw: string) => void;
   onEnter: (caretOffset: number, currentText?: string) => void;
   onBackspace: (isEmpty: boolean, atStart: boolean) => void;
+  onDelete: () => void;
   onTab: (shift: boolean) => void;
   onArrowUp: () => void;
   onArrowDown: () => void;
@@ -702,7 +712,7 @@ const BlockEditorInner = ({
   const handleBlur = () => {
     const el = divRef.current;
     if (!el) return;
-    const rawText = htmlToMarkdownInline(el.innerHTML);
+    const rawText = htmlToMarkdownInline(el.innerHTML.replace(/&nbsp;/g, " ")).replace(/\u00A0/g, " ");
     const escaped = escapeHtml(rawText);
     const html = block.type === "hr" ? "" : block.type === "code" ? escaped : applyInlineFormatting(escaped);
     if (el.innerHTML !== html) {
@@ -712,21 +722,40 @@ const BlockEditorInner = ({
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const text = e.clipboardData
-      .getData("text/plain")
-      .replace(/\u00A0/g, " "); // &nbsp; → space
+
+    // HTML에서 이미지 추출 → 마크다운 이미지로 변환
+    const html = e.clipboardData.getData("text/html");
+    let text = e.clipboardData.getData("text/plain").replace(/\u00A0/g, " ");
+
+    if (html) {
+      // <img> 태그를 마크다운 이미지로 변환하여 text에 삽입
+      const imgRegex = /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*\/?>/gi;
+      const images: string[] = [];
+      let match;
+      while ((match = imgRegex.exec(html)) !== null) {
+        const src = sanitizeUrl(match[1]);
+        if (!src) continue;
+        // 마크다운 특수문자 이스케이프
+        const alt = (match[2] ?? "image").replace(/[[\]()]/g, "\\$&");
+        images.push(`![${alt}](${src})`);
+      }
+      if (images.length > 0 && !text.trim()) {
+        // 텍스트 없이 이미지만 붙여넣기
+        text = images.join("\n");
+      } else if (images.length > 0) {
+        // 텍스트 + 이미지: 이미지를 텍스트 끝에 추가
+        text = text + "\n" + images.join("\n");
+      }
+    }
 
     let lines = text.split("\n");
-    // 마지막 빈 줄 제거 ("text\n" → ["text"] 처리)
     if (lines.length > 1 && lines[lines.length - 1] === "") {
       lines = lines.slice(0, -1);
     }
     if (lines.length <= 1) {
-      // 단일 줄: 기존 블록에 삽입
       document.execCommand("insertText", false, lines[0] ?? "");
       return;
     }
-    // 멀티라인: 부모에서 블록 분할 처리
     onPaste(lines);
   };
 
@@ -747,8 +776,8 @@ const BlockEditorInner = ({
     const el = divRef.current;
     if (!el) return;
 
-    const html = el.innerHTML;
-    const text = htmlToMarkdownInline(html);
+    const html = el.innerHTML.replace(/&nbsp;/g, " ");
+    const text = htmlToMarkdownInline(html).replace(/\u00A0/g, " ");
     let prefix = BLOCK_PREFIX[block.type] ?? "";
     // todo: checked 상태 유지
     if (block.type === "todo") {
@@ -1320,6 +1349,7 @@ const htmlToMarkdownInline = (html: string): string => {
   }
   return result
     .replace(/<code[^>]*>([^<]*)<\/code>/g, "`$1`")
+    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/g, "![$2]($1)")
     // note link → [[Note #N|title]]
     .replace(/<a[^>]*data-note="(\d+)"[^>]*>[^<]*<\/a>/g, (_, num) => {
       // Try to extract title from the visible text
@@ -1331,6 +1361,8 @@ const htmlToMarkdownInline = (html: string): string => {
     .replace(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g, "[$2]($1)")
     .replace(/<br\s*\/?>/g, "")
     .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\u00A0/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -1412,6 +1444,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
 
   const [slashMenu, setSlashMenu] = useState<SlashMenuState>(SLASH_MENU_INITIAL);
   const [dragState, setDragState] = useState<{ dragging: number; over: number }>({ dragging: -1, over: -1 });
+  const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
   const [collapsedToggles, setCollapsedToggles] = useState<Set<string>>(new Set());
 
   const handleToggle = useCallback((blockId: string) => {
@@ -1703,21 +1736,19 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
           type: detectBlockType((indent + prefix + firstLine).trim()),
         };
 
-        // 중간 줄들: 새 블록으로 생성
-        const newBlocks: Block[] = lines.slice(1, -1).map(line => ({
-          id: generateId(),
-          type: detectBlockType(line.trim()),
-          raw: line,
-          indent: getIndent(line),
-        }));
+        // 중간 + 마지막 줄을 parseMarkdown으로 파싱 (테이블/코드블록 그룹핑)
+        const remainingText = lines.slice(1, -1).join("\n");
+        const lastLineRaw = (lines[lines.length - 1] ?? "") + afterCaret;
+        const fullPasteText = remainingText ? remainingText + "\n" + lastLineRaw : lastLineRaw;
+        const parsedBlocks = parseMarkdown(fullPasteText);
 
-        // 마지막 줄 + 커서 뒤 텍스트
-        const lastLine = (lines[lines.length - 1] ?? "") + afterCaret;
-        const lastBlock: Block = {
+        // 마지막 파싱 블록의 raw에 afterCaret가 포함되어 있음
+        const newBlocks = parsedBlocks.slice(0, -1);
+        const lastBlock = parsedBlocks[parsedBlocks.length - 1] ?? {
           id: generateId(),
-          type: detectBlockType(lastLine.trim()),
-          raw: lastLine,
-          indent: getIndent(lastLine),
+          type: "paragraph" as BlockType,
+          raw: lastLineRaw,
+          indent: 0,
         };
 
         const result = [
@@ -1731,7 +1762,7 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
         // 마지막 붙여넣기 블록에 포커스
         const focusIdx = index + newBlocks.length + 1;
         pendingFocusIndex.current = focusIdx;
-        pendingFocusOffset.current = lastLine.length - afterCaret.length;
+        pendingFocusOffset.current = -2; // 끝으로
 
         notifyChange(result);
         return result;
@@ -1990,9 +2021,38 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
     if (filtered[idx]) handleNoteLinkSelect(filtered[idx]);
   }, [noteLinkMenu, notesList, handleNoteLinkSelect]);
 
-  const handleDragStart = useCallback((index: number) => {
-    setDragState({ dragging: index, over: -1 });
+  const dragIndicesRef = useRef<number[]>([]);
+  const lastClickedRef = useRef(-1);
+
+  const handleDragHandleClick = useCallback((index: number, e: React.MouseEvent) => {
+    if (e.shiftKey && lastClickedRef.current !== -1) {
+      // Shift+클릭: 범위 선택
+      const from = Math.min(lastClickedRef.current, index);
+      const to = Math.max(lastClickedRef.current, index);
+      const range = new Set<number>();
+      for (let i = from; i <= to; i++) range.add(i);
+      setSelectedBlocks(range);
+    } else if (e.metaKey || e.ctrlKey) {
+      // Cmd/Ctrl+클릭: 토글 선택
+      setSelectedBlocks(prev => {
+        const next = new Set(prev);
+        if (next.has(index)) next.delete(index); else next.add(index);
+        return next;
+      });
+    } else {
+      setSelectedBlocks(new Set([index]));
+    }
+    lastClickedRef.current = index;
   }, []);
+
+  const handleDragStart = useCallback((index: number) => {
+    // 선택된 블록이 없거나 드래그 대상이 선택에 포함 안 되면, 단일 드래그
+    const indices = selectedBlocks.has(index)
+      ? [...selectedBlocks].sort((a, b) => a - b)
+      : [index];
+    dragIndicesRef.current = indices;
+    setDragState({ dragging: index, over: -1 });
+  }, [selectedBlocks]);
 
   const handleDragOver = useCallback((index: number) => {
     setDragState(prev => (prev.dragging === index ? prev : { ...prev, over: index }));
@@ -2000,25 +2060,35 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
 
   const handleDrop = useCallback(
     (dropIndex: number) => {
-      const fromIndex = dragState.dragging;
-      if (fromIndex === -1 || fromIndex === dropIndex) {
+      const indices = dragIndicesRef.current;
+      if (indices.length === 0 || indices.includes(dropIndex)) {
         setDragState({ dragging: -1, over: -1 });
+        dragIndicesRef.current = [];
         return;
       }
       setBlocks(prev => {
-        const result = [...prev];
-        const [moved] = result.splice(fromIndex, 1);
-        result.splice(dropIndex > fromIndex ? dropIndex - 1 : dropIndex, 0, moved);
-        notifyChange(result);
-        return result;
+        // 이동할 블록들을 추출
+        const moving = indices.map(i => prev[i]);
+        // 나머지 블록들
+        const remaining = prev.filter((_, i) => !indices.includes(i));
+        // 드롭 위치 계산 (제거된 블록 수 반영)
+        const removedBefore = indices.filter(i => i < dropIndex).length;
+        const insertAt = Math.min(dropIndex - removedBefore, remaining.length);
+        // 삽입
+        remaining.splice(insertAt, 0, ...moving);
+        notifyChange(remaining);
+        return remaining;
       });
       setDragState({ dragging: -1, over: -1 });
+      setSelectedBlocks(new Set());
+      dragIndicesRef.current = [];
     },
-    [dragState.dragging, notifyChange],
+    [notifyChange],
   );
 
   const handleDragEnd = useCallback(() => {
     setDragState({ dragging: -1, over: -1 });
+    dragIndicesRef.current = [];
   }, []);
 
   // blocks를 ref로 추적하여 stale closure 방지
@@ -2095,6 +2165,8 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
           }
           return;
         }
+        // 블록 선택 해제
+        if (selectedBlocks.size > 0) setSelectedBlocks(new Set());
         if (focusedIndex === -1 && blockRefs.current.length > 0) {
           const lastIdx = blocks.length - 1;
           blockRefs.current[lastIdx]?.focus();
@@ -2126,23 +2198,30 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
           return (
           <div
             key={block.id}
-            className={`group/block relative ${dragState.over === index && dragState.dragging !== index ? "border-t-2 border-primary" : ""} ${dragState.dragging === index ? "opacity-40" : ""}`}
+            className={`group/block relative ${dragState.over === index && dragState.dragging !== index ? "border-t-2 border-primary" : ""} ${dragIndicesRef.current.includes(index) && dragState.dragging !== -1 ? "opacity-40" : ""} ${selectedBlocks.has(index) ? "bg-primary/5 rounded-[0.25rem]" : ""}`}
             style={block.indent > 0 ? { marginLeft: `${block.indent * 2.4}rem`, paddingLeft: "1.2rem", borderLeft: "2px solid var(--color-outline-variant, #444)" } : undefined}
             onDragOver={e => { e.preventDefault(); handleDragOver(index); }}
             onDrop={e => { e.preventDefault(); handleDrop(index); }}>
-            {/* Drag Handle */}
-            <div
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragEnd={handleDragEnd}
-              className="absolute -left-[2.8rem] top-[0.4rem] hidden h-[2.4rem] w-[2rem] cursor-grab items-center justify-center rounded-[0.25rem] text-on-surface-variant/0 transition-colors group-hover/block:text-on-surface-variant/30 hover:!text-on-surface-variant/60 hover:bg-surface-container group-hover/block:flex active:cursor-grabbing"
-              title="Drag to reorder">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                <circle cx="4" cy="2" r="1.2"/><circle cx="10" cy="2" r="1.2"/>
-                <circle cx="4" cy="7" r="1.2"/><circle cx="10" cy="7" r="1.2"/>
-                <circle cx="4" cy="12" r="1.2"/><circle cx="10" cy="12" r="1.2"/>
-              </svg>
-            </div>
+            {/* Drag Handle + Block */}
+            <div className="flex items-start">
+              <div
+                draggable
+                onClick={e => handleDragHandleClick(index, e)}
+                onDragStart={() => handleDragStart(index)}
+                onDragEnd={handleDragEnd}
+                className={`mt-[0.6rem] mr-[0.4rem] flex h-[2rem] w-[1.6rem] shrink-0 cursor-grab items-center justify-center rounded-[0.25rem] transition-colors active:cursor-grabbing ${
+                  selectedBlocks.has(index)
+                    ? "text-primary/60"
+                    : "text-on-surface-variant/0 group-hover/block:text-on-surface-variant/30 hover:!text-on-surface-variant/60 hover:bg-surface-container"
+                }`}
+                title="Click to select, Shift+click for range, drag to reorder">
+                <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+                  <circle cx="2.5" cy="2" r="1.2"/><circle cx="7.5" cy="2" r="1.2"/>
+                  <circle cx="2.5" cy="7" r="1.2"/><circle cx="7.5" cy="7" r="1.2"/>
+                  <circle cx="2.5" cy="12" r="1.2"/><circle cx="7.5" cy="12" r="1.2"/>
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
             <BlockEditor
               block={block}
               isFocused={focusedIndex === index}
@@ -2172,6 +2251,8 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
                 blockRefs.current[index] = el;
               }}
             />
+              </div>
+            </div>
           </div>
           );
         })}
@@ -2245,6 +2326,12 @@ const MarkdownEditor = ({ value, onChange, placeholder = "Start writing...", onN
         }
         .note-link:hover {
           background: color-mix(in srgb, var(--color-primary, #0ea5e9) 20%, transparent);
+        }
+        .inline-image {
+          max-width: 100%;
+          border-radius: 0.5rem;
+          margin: 0.8rem 0;
+          display: block;
         }
         .inline-highlight {
           background: rgba(255, 226, 171, 0.3);

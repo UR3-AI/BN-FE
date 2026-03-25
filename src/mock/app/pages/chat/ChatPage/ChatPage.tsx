@@ -193,10 +193,9 @@ const ChatPage = () => {
                     cancelAnimationFrame(rafRef.current);
                     rafRef.current = 0;
                   }
-                  queryClient.refetchQueries({ queryKey: ["chat"] }).then(() => {
-                    setDisplayText("");
-                    setStreamingSources([]);
-                  });
+                  await queryClient.refetchQueries({ queryKey: ["chat"] }).catch(() => {});
+                  setDisplayText("");
+                  setStreamingSources([]);
                   break;
                 case "failed":
                   setStreamError(data.error ?? "An error occurred");

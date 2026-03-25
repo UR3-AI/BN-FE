@@ -30,7 +30,6 @@ const useNoteStream = () => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-
         let currentEvent = "";
 
         const processLines = (lines: string[]) => {
@@ -38,9 +37,42 @@ const useNoteStream = () => {
             if (line.startsWith("event: ")) {
               currentEvent = line.slice(7).trim();
             } else if (line === "") {
-              if (currentEvent === "completed" || currentEvent === "failed") {
-                queryClient.invalidateQueries({ queryKey: ["notes"] });
-                return true;
+              console.log(`[NoteStream #${noteNumber}]`, currentEvent);
+              switch (currentEvent) {
+                case "pending":
+                case "processing":
+                  // 상태 변화 반영 → isBusy 갱신
+                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  break;
+
+                case "summary_ready":
+                  // 요약/태그 즉시 표시 + processing_status 갱신
+                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
+                  break;
+
+                case "actions_ready":
+                  // 액션아이템 즉시 표시
+                  queryClient.invalidateQueries({ queryKey: ["notes", "actions", noteNumber] });
+                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  break;
+
+                case "entities_ready":
+                  // 그래프 즉시 표시
+                  queryClient.invalidateQueries({ queryKey: ["notes", "related", noteNumber] });
+                  queryClient.invalidateQueries({ queryKey: ["notes", "detail", noteNumber] });
+                  break;
+
+                case "completed":
+                case "failed":
+                  // 전체 갱신 → isBusy=false, 미저장 PATCH 허용
+                  queryClient.invalidateQueries({ queryKey: ["notes"] });
+                  currentEvent = "";
+                  return true;
+
+                default:
+                  // 알 수 없는 이벤트 무시
+                  break;
               }
               currentEvent = "";
             }

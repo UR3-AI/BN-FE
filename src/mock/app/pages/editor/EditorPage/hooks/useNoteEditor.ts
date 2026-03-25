@@ -9,14 +9,29 @@ import { useQueryClient } from "@tanstack/react-query";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-const DEBOUNCE_MS = 1500;
+const DEBOUNCE_MS = 2500;
+
+// 노트별 미저장 로컬 편집 내용 (모듈 싱글턴 — 단일 에디터 인스턴스 전제, 최대 20개)
+const MAX_UNSAVED = 20;
+const unsavedEditsMap = new Map<number, { title: string; content: string }>();
+
+const addUnsaved = (noteNumber: number, data: { title: string; content: string }) => {
+  unsavedEditsMap.set(noteNumber, data);
+  // 오래된 항목 정리
+  if (unsavedEditsMap.size > MAX_UNSAVED) {
+    const firstKey = unsavedEditsMap.keys().next().value;
+    if (firstKey !== undefined) unsavedEditsMap.delete(firstKey);
+  }
+};
 
 const useNoteEditor = ({
   noteDetail,
   noteNumber,
+  onSaveSuccess,
 }: {
   noteDetail: NoteDetailResponse | undefined;
   noteNumber: number;
+  onSaveSuccess?: (noteNumber: number) => void;
 }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -27,44 +42,83 @@ const useNoteEditor = ({
   const updateMutation = useUpdateNoteMutation();
   const queryClient = useQueryClient();
 
+  // noteDetail 미로드 또는 pending/processing 중에는 PATCH 차단
+  const isBusy = !noteDetail || noteDetail.processing_status === "processing" || noteDetail.processing_status === "pending";
+  const isBusyRef = useRef(isBusy);
+  isBusyRef.current = isBusy;
+
   // 렌더 중 동기화: noteDetail이 새 노트로 바뀌면 즉시 content 설정
-  // (useEffect와 달리 MarkdownEditor 마운트 전에 실행됨)
-  // 렌더 중 동기화: setState만 수행 (부수효과 없음)
-  const pendingFlushRef = useRef<{ title: string; content: string; noteNumber: number } | null>(null);
   if (noteDetail && noteDetail.note_number !== syncedNoteNumber) {
-    // 이전 노트의 pending save를 기록만 해두고, useEffect에서 API 호출
+    // 이전 노트의 pending을 unsavedEditsMap에 보관
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     if (pendingRef.current !== null && pendingRef.current.noteNumber > 0) {
-      pendingFlushRef.current = { ...pendingRef.current };
+      addUnsaved(pendingRef.current.noteNumber, {
+        title: pendingRef.current.title,
+        content: pendingRef.current.content,
+      });
     }
 
     pendingRef.current = null;
     setSyncedNoteNumber(noteDetail.note_number);
-    setTitle(noteDetail.title ?? "");
-    setContent(noteDetail.content ?? "");
-    setSaveStatus("idle");
+
+    // 로컬에 미저장 편집이 있으면 서버 데이터 대신 로컬 데이터 사용
+    const unsaved = unsavedEditsMap.get(noteDetail.note_number);
+    if (unsaved) {
+      setTitle(unsaved.title);
+      setContent(unsaved.content);
+      setSaveStatus("idle");
+    } else {
+      setTitle(noteDetail.title ?? "");
+      setContent(noteDetail.content ?? "");
+      setSaveStatus("idle");
+    }
   }
 
-  // 노트 전환 시에만 이전 노트의 pending을 flush
+  // 노트 전환 시 이전 노트의 pending을 flush 시도
   useEffect(() => {
-    const p = pendingFlushRef.current;
-    if (p) {
-      pendingFlushRef.current = null;
-      if (p.title || p.content) {
-        api.patch(`/api/v1/notes/${p.noteNumber}`, {
-          title: p.title || undefined,
-          content: p.content || " ",
-        }).catch(() => {});
-      }
+    const prevNote = [...unsavedEditsMap.entries()].find(
+      ([num]) => num !== noteNumber,
+    );
+    if (!prevNote) return;
+    const [num, data] = prevNote;
+
+    // busy 상태는 알 수 없으므로 시도하고 실패하면 보관 유지
+    if (data.title || data.content) {
+      api
+        .patch(`/api/v1/notes/${num}`, {
+          title: data.title || undefined,
+          content: data.content || " ",
+        })
+        .then(() => {
+          // 성공 시 맵에서 제거
+          unsavedEditsMap.delete(num);
+        })
+        .catch(() => {
+          // 409 등 실패 시 맵에 유지 → 나중에 재시도
+        });
     }
-  }, [syncedNoteNumber]);
+  }, [syncedNoteNumber, noteNumber]);
 
   const save = (value: { title: string; content: string }, targetNoteNumber: number) => {
     if (targetNoteNumber <= 0) return;
     if (!value.title && !value.content) return;
+
+    // busy 중이면 저장하지 않고 pending + unsavedEditsMap에 보관
+    if (isBusyRef.current) {
+      pendingRef.current = { ...value, noteNumber: targetNoteNumber };
+      addUnsaved(targetNoteNumber, { title: value.title, content: value.content });
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        if (pendingRef.current) {
+          save(pendingRef.current, pendingRef.current.noteNumber);
+        }
+      }, DEBOUNCE_MS);
+      return;
+    }
+
     setSaveStatus("saving");
     pendingRef.current = null;
     const savedTitle = value.title;
@@ -78,15 +132,23 @@ const useNoteEditor = ({
       {
         onSuccess: () => {
           setSaveStatus("saved");
+          unsavedEditsMap.delete(targetNoteNumber);
+          // PATCH 성공 → 백엔드 reprocess 시작 → SSE 재구독 필요
+          onSaveSuccess?.(targetNoteNumber);
           queryClient.setQueryData<NoteDetailResponse>(
             ["notes", "detail", targetNoteNumber],
             old => {
               if (!old) return old;
-              return { ...old, title: savedTitle || old.title, content: savedContent };
+              // PATCH 성공 → 백엔드가 reprocess 트리거하므로 pending으로 설정
+              return { ...old, title: savedTitle || old.title, content: savedContent, processing_status: "pending" };
             },
           );
         },
-        onError: () => setSaveStatus("error"),
+        onError: () => {
+          setSaveStatus("error");
+          // 실패 시 미저장 맵에 보관
+          addUnsaved(targetNoteNumber, { title: savedTitle, content: savedContent });
+        },
       },
     );
   };
@@ -134,6 +196,7 @@ const useNoteEditor = ({
       }
       if (pendingRef.current !== null && pendingRef.current.noteNumber > 0) {
         const { title: t, content: c, noteNumber: n } = pendingRef.current;
+        addUnsaved(n, { title: t, content: c });
         if (t || c) {
           api.patch(`/api/v1/notes/${n}`, { title: t || undefined, content: c || " " }).catch(() => {});
         }
