@@ -1,9 +1,9 @@
-export interface UsePinNoteMutationRequest {
+export interface UsePinNoteRequest {
   noteNumber: number;
   pinned: boolean;
 }
 
-export interface UsePinNoteMutationResponse {
+export interface UsePinNoteResponse {
   note_number: number;
   is_pinned: boolean;
 }

@@ -2,12 +2,12 @@ import { useMutation } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
 import type {
-  UsePinNoteMutationRequest,
-  UsePinNoteMutationResponse,
+  UsePinNoteRequest,
+  UsePinNoteResponse,
 } from "./usePinNoteMutation.type";
 
-const pinNote = async ({ noteNumber, pinned }: UsePinNoteMutationRequest) => {
-  const response = await api.post<UsePinNoteMutationResponse>(
+const pinNote = async ({ noteNumber, pinned }: UsePinNoteRequest) => {
+  const response = await api.post<UsePinNoteResponse>(
     `/api/v1/notes/${noteNumber}/pin`,
     { pinned },
   );

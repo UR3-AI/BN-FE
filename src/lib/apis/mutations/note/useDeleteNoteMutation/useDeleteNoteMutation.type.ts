@@ -1,3 +1,3 @@
-export interface UseDeleteNoteMutationRequest {
+export interface UseDeleteNoteRequest {
   noteNumber: number;
 }

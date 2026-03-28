@@ -2,12 +2,12 @@ import { useMutation } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
 import type {
-  UseCreateNoteMutationRequest,
-  UseCreateNoteMutationResponse,
+  UseCreateNoteRequest,
+  UseCreateNoteResponse,
 } from "./useCreateNoteMutation.type";
 
-const createNote = async (data: UseCreateNoteMutationRequest) => {
-  const response = await api.post<UseCreateNoteMutationResponse>(
+const createNote = async (data: UseCreateNoteRequest) => {
+  const response = await api.post<UseCreateNoteResponse>(
     "/api/v1/notes",
     data,
   );

@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
 import projectKeys from "../keys";
-import type { UseProjectTreeQueryResponse } from "./useProjectTreeQuery.type";
+import type { UseProjectTreeResponse } from "./useProjectTreeQuery.type";
 
 const getProjectTree = async () => {
-  const response = await api.get<UseProjectTreeQueryResponse>(
+  const response = await api.get<UseProjectTreeResponse>(
     "/api/v1/projects/tree",
   );
 

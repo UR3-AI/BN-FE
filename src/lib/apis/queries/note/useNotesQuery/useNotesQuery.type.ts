@@ -1,6 +1,6 @@
 import type { NoteListItem } from "@lib/types";
 
-export interface UseNotesQueryParams {
+export interface UseNotesParams {
   skip?: number;
   limit?: number;
   cursor?: string | null;
@@ -10,7 +10,7 @@ export interface UseNotesQueryParams {
   pinned?: boolean | null;
 }
 
-export interface UseNotesQueryResponse {
+export interface UseNotesResponse {
   items: NoteListItem[];
   total: number;
   skip: number;

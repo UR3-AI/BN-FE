@@ -1,5 +1,5 @@
 import type { ProjectTreeItem } from "@lib/types";
 
-export interface UseProjectTreeQueryResponse {
+export interface UseProjectTreeResponse {
   items: ProjectTreeItem[];
 }
