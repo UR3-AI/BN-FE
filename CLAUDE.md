@@ -209,7 +209,7 @@ export default ComponentName
 - `trailingComma: "all"` — 후행 콤마 항상 사용
 - `arrowParens: "avoid"` — 화살표 함수 단일 파라미터 시 괄호 생략: `x => x`
 - `singleAttributePerLine: true` — JSX 속성 한 줄에 하나씩
-- `bracketSameLine: true` — JSX 닫는 괄호를 같은 줄에
+- `bracketSameLine: false` — JSX 닫는 괄호를 다음 줄에
 
 ### Import Order (Prettier plugin)
 
