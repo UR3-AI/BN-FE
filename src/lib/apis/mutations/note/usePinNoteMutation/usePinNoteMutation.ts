@@ -1,6 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
+import noteKeys from "../../../queries/note/keys";
 import type {
   UsePinNoteRequest,
   UsePinNoteResponse,
@@ -16,8 +17,13 @@ const pinNote = async ({ noteNumber, pinned }: UsePinNoteRequest) => {
 };
 
 const usePinNoteMutation = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: pinNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: noteKeys.all });
+    },
   });
 };
 

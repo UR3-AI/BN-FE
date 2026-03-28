@@ -1,6 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
+import noteKeys from "../../../queries/note/keys";
 import type {
   UseCreateNoteRequest,
   UseCreateNoteResponse,
@@ -16,8 +17,13 @@ const createNote = async (data: UseCreateNoteRequest) => {
 };
 
 const useCreateNoteMutation = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: createNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: noteKeys.all });
+    },
   });
 };
 

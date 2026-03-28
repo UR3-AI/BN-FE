@@ -1,6 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
+import noteKeys from "../../../queries/note/keys";
 import type { UseDeleteNoteRequest } from "./useDeleteNoteMutation.type";
 
 const deleteNote = async ({ noteNumber }: UseDeleteNoteRequest) => {
@@ -8,8 +9,13 @@ const deleteNote = async ({ noteNumber }: UseDeleteNoteRequest) => {
 };
 
 const useDeleteNoteMutation = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: noteKeys.all });
+    },
   });
 };
 
