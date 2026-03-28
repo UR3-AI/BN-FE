@@ -1,7 +1,7 @@
 import { SECOND } from "@lib/constants";
 import { useAuthStore } from "@lib/stores";
 
-import { refreshTokenAsync } from "../services";
+import { refreshTokenGuard } from "../services";
 
 import type { AxiosError } from "axios";
 import axios from "axios";
@@ -45,7 +45,7 @@ api.interceptors.response.use(
     }
 
     try {
-      const data = await refreshTokenAsync(refreshToken);
+      const data = await refreshTokenGuard(refreshToken);
 
       useAuthStore
         .getState()

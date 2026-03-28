@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { refreshTokenAsync } from "@lib/apis";
+import { refreshTokenGuard } from "@lib/apis";
 import { useAuthStore } from "@lib/stores";
 
 const REFRESH_BUFFER_SEC = 60;
@@ -19,7 +19,7 @@ const useTokenRefresh = () => {
     const timerId = setTimeout(
       async () => {
         try {
-          const data = await refreshTokenAsync(refreshToken);
+          const data = await refreshTokenGuard(refreshToken);
 
           setTokens(data.access_token, data.refresh_token, data.expires_in);
         } catch {

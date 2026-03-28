@@ -1,1 +1,1 @@
-export { default as refreshTokenAsync } from "./refreshTokenAsync";
+export { default as refreshTokenGuard } from "./refreshTokenAsync";

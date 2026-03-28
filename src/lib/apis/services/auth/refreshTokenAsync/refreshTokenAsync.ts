@@ -9,4 +9,16 @@ const refreshTokenAsync = async (refreshToken: string) => {
   return data;
 };
 
-export default refreshTokenAsync;
+let refreshPromise: Promise<UR3Token> | null = null;
+
+const refreshTokenGuard = (refreshToken: string): Promise<UR3Token> => {
+  if (!refreshPromise) {
+    refreshPromise = refreshTokenAsync(refreshToken).finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+};
+
+export default refreshTokenGuard;
