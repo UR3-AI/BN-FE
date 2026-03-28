@@ -52,8 +52,7 @@ const meta = {
       control: false,
     },
     isLoading: {
-      description:
-        "로딩 상태 — 스피너 표시, 클릭 비활성화, variant 스타일 유지",
+      description: "로딩 상태 — 스피너 표시, 클릭 비활성화, variant 스타일 유지",
       control: "boolean",
     },
     disabled: {
@@ -124,7 +123,8 @@ export const WithIcon: Story = {
         icon={
           <svg
             viewBox="0 0 20 20"
-            fill="currentColor">
+            fill="currentColor"
+          >
             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
             <path
               fillRule="evenodd"
@@ -132,7 +132,8 @@ export const WithIcon: Story = {
               clipRule="evenodd"
             />
           </svg>
-        }>
+        }
+      >
         S (아이콘 무시됨)
       </Button>
       <Button
@@ -140,7 +141,8 @@ export const WithIcon: Story = {
         icon={
           <svg
             viewBox="0 0 20 20"
-            fill="currentColor">
+            fill="currentColor"
+          >
             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
             <path
               fillRule="evenodd"
@@ -148,7 +150,8 @@ export const WithIcon: Story = {
               clipRule="evenodd"
             />
           </svg>
-        }>
+        }
+      >
         M (아이콘 표시)
       </Button>
       <Button
@@ -156,7 +159,8 @@ export const WithIcon: Story = {
         icon={
           <svg
             viewBox="0 0 20 20"
-            fill="currentColor">
+            fill="currentColor"
+          >
             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
             <path
               fillRule="evenodd"
@@ -164,7 +168,8 @@ export const WithIcon: Story = {
               clipRule="evenodd"
             />
           </svg>
-        }>
+        }
+      >
         L (아이콘 표시)
       </Button>
     </div>
@@ -179,22 +184,26 @@ export const Disabled: Story = {
     <div className="flex flex-wrap items-center gap-4">
       <Button
         variant="primary"
-        disabled>
+        disabled
+      >
         Primary
       </Button>
       <Button
         variant="secondary"
-        disabled>
+        disabled
+      >
         Secondary
       </Button>
       <Button
         variant="tertiary"
-        disabled>
+        disabled
+      >
         Tertiary
       </Button>
       <Button
         variant="text"
-        disabled>
+        disabled
+      >
         Text
       </Button>
     </div>
@@ -209,22 +218,26 @@ export const Loading: Story = {
     <div className="flex flex-wrap items-center gap-4">
       <Button
         variant="primary"
-        isLoading>
+        isLoading
+      >
         Primary
       </Button>
       <Button
         variant="secondary"
-        isLoading>
+        isLoading
+      >
         Secondary
       </Button>
       <Button
         variant="tertiary"
-        isLoading>
+        isLoading
+      >
         Tertiary
       </Button>
       <Button
         variant="text"
-        isLoading>
+        isLoading
+      >
         Text
       </Button>
     </div>
@@ -238,25 +251,30 @@ export const LoadingComparison: Story = {
   render: () => (
     <div
       className="flex flex-col gap-6"
-      style={{ fontSize: "1.4rem" }}>
+      style={{ fontSize: "1.4rem" }}
+    >
       {(["primary", "secondary", "tertiary", "text"] as const).map(variant => (
         <div
           key={variant}
-          className="flex items-center gap-4">
+          className="flex items-center gap-4"
+        >
           <span
             className="w-[8rem] text-text-secondary"
-            style={{ fontSize: "1.2rem" }}>
+            style={{ fontSize: "1.2rem" }}
+          >
             {variant}
           </span>
           <Button variant={variant}>기본</Button>
           <Button
             variant={variant}
-            isLoading>
+            isLoading
+          >
             로딩
           </Button>
           <Button
             variant={variant}
-            disabled>
+            disabled
+          >
             비활성
           </Button>
         </div>

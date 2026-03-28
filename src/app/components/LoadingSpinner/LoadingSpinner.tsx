@@ -15,7 +15,8 @@ const LoadingSpinner = ({
   return (
     <div
       className="relative"
-      style={{ width: size, height: size }}>
+      style={{ width: size, height: size }}
+    >
       <div
         className={`w-full h-full rounded-full border-transparent ${borderTopColorStyles[color]} animate-loading-spinner`}
         style={{ borderWidth: weight }}

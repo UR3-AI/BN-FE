@@ -5,7 +5,13 @@ import { useAuthStore } from "@lib/stores";
 const ProtectedRoute = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated)
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
 
   return <Outlet />;
 };

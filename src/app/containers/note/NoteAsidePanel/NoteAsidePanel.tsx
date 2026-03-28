@@ -51,14 +51,13 @@ const NoteAsidePanel = () => {
     <aside className="flex h-full w-[30rem] shrink-0 flex-col border-r border-[var(--color-divider-lighter)]">
       <header className="flex flex-col gap-[1rem] p-[1.6rem]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[1.8rem] font-bold text-[var(--color-text-primary)]">
-            Note
-          </h2>
+          <h2 className="text-[1.8rem] font-bold text-[var(--color-text-primary)]">Note</h2>
 
           <Button
             size="m"
             onClick={handleCreate}
-            isLoading={createNote.isPending}>
+            isLoading={createNote.isPending}
+          >
             + 새 노트
           </Button>
         </div>

@@ -86,7 +86,8 @@ const ModalWithTrigger = ({
         isShow={isShow}
         onClose={() => setIsShow(false)}
         disableAwayClick={disableAwayClick}
-        hideCloseIcon={hideCloseIcon}>
+        hideCloseIcon={hideCloseIcon}
+      >
         {children}
       </Modal>
     </>
@@ -102,14 +103,15 @@ export const Default: Story = {
       <div className="w-72">
         <h2
           className="mb-2 font-semibold"
-          style={{ fontSize: "1.8rem" }}>
+          style={{ fontSize: "1.8rem" }}
+        >
           모달 제목
         </h2>
         <p
           className="text-gray-600"
-          style={{ fontSize: "1.4rem" }}>
-          기본 모달입니다. 우측 상단 X 버튼, 배경 클릭, ESC 키로 닫을 수
-          있습니다.
+          style={{ fontSize: "1.4rem" }}
+        >
+          기본 모달입니다. 우측 상단 X 버튼, 배경 클릭, ESC 키로 닫을 수 있습니다.
         </p>
       </div>
     </ModalWithTrigger>
@@ -132,14 +134,15 @@ export const HideCloseIcon: Story = {
       <div className="w-72">
         <h2
           className="mb-2 font-semibold"
-          style={{ fontSize: "1.8rem" }}>
+          style={{ fontSize: "1.8rem" }}
+        >
           닫기 버튼 없음
         </h2>
         <p
           className="text-gray-600"
-          style={{ fontSize: "1.4rem" }}>
-          닫기(X) 버튼이 숨겨진 모달입니다. 배경 클릭 또는 ESC 키로 닫을 수
-          있습니다.
+          style={{ fontSize: "1.4rem" }}
+        >
+          닫기(X) 버튼이 숨겨진 모달입니다. 배경 클릭 또는 ESC 키로 닫을 수 있습니다.
         </p>
       </div>
     </ModalWithTrigger>
@@ -162,14 +165,15 @@ export const DisableAwayClick: Story = {
       <div className="w-72">
         <h2
           className="mb-2 font-semibold"
-          style={{ fontSize: "1.8rem" }}>
+          style={{ fontSize: "1.8rem" }}
+        >
           배경 클릭 비활성화
         </h2>
         <p
           className="text-gray-600"
-          style={{ fontSize: "1.4rem" }}>
-          배경을 클릭해도 닫히지 않습니다. X 버튼 또는 ESC 키로만 닫을 수
-          있습니다.
+          style={{ fontSize: "1.4rem" }}
+        >
+          배경을 클릭해도 닫히지 않습니다. X 버튼 또는 ESC 키로만 닫을 수 있습니다.
         </p>
       </div>
     </ModalWithTrigger>
@@ -190,18 +194,20 @@ export const Locked: Story = {
   render: () => (
     <ModalWithTrigger
       disableAwayClick
-      hideCloseIcon>
+      hideCloseIcon
+    >
       <div className="w-72">
         <h2
           className="mb-2 font-semibold"
-          style={{ fontSize: "1.8rem" }}>
+          style={{ fontSize: "1.8rem" }}
+        >
           잠금 모달
         </h2>
         <p
           className="text-gray-600"
-          style={{ fontSize: "1.4rem" }}>
-          배경 클릭과 닫기 버튼이 모두 비활성화되어 있습니다. ESC 키로만 닫을 수
-          있습니다.
+          style={{ fontSize: "1.4rem" }}
+        >
+          배경 클릭과 닫기 버튼이 모두 비활성화되어 있습니다. ESC 키로만 닫을 수 있습니다.
         </p>
       </div>
     </ModalWithTrigger>
@@ -223,19 +229,21 @@ export const WithLongContent: Story = {
     <ModalWithTrigger>
       <div
         className="w-[40rem] overflow-y-auto"
-        style={{ maxHeight: "50vh" }}>
+        style={{ maxHeight: "50vh" }}
+      >
         <h2
           className="mb-4 font-semibold"
-          style={{ fontSize: "1.8rem" }}>
+          style={{ fontSize: "1.8rem" }}
+        >
           긴 콘텐츠 모달
         </h2>
         {Array.from({ length: 20 }, (_, i) => (
           <p
             key={i}
             className="mb-3 text-gray-600"
-            style={{ fontSize: "1.4rem" }}>
-            콘텐츠 항목 {i + 1}: Lorem ipsum dolor sit amet, consectetur
-            adipiscing elit.
+            style={{ fontSize: "1.4rem" }}
+          >
+            콘텐츠 항목 {i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
           </p>
         ))}
       </div>

@@ -47,9 +47,7 @@ api.interceptors.response.use(
     try {
       const data = await refreshTokenGuard(refreshToken);
 
-      useAuthStore
-        .getState()
-        .setTokens(data.access_token, data.refresh_token, data.expires_in);
+      useAuthStore.getState().setTokens(data.access_token, data.refresh_token, data.expires_in);
 
       originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
 

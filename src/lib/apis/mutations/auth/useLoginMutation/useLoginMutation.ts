@@ -1,10 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
-import type {
-  UseLoginRequest,
-  UseLoginResponse,
-} from "./useLoginMutation.type";
+import type { UseLoginRequest, UseLoginResponse } from "./useLoginMutation.type";
 
 const login = async (data: UseLoginRequest) => {
   const response = await api.post<UseLoginResponse>("/api/v1/auth/login", data);

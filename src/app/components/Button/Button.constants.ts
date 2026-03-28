@@ -31,10 +31,4 @@ const spinnerSizes = {
   l: "1.8rem",
 } as const;
 
-export {
-  variantStyles,
-  disabledVariantStyles,
-  sizeStyles,
-  tapStyles,
-  spinnerSizes,
-};
+export { variantStyles, disabledVariantStyles, sizeStyles, tapStyles, spinnerSizes };

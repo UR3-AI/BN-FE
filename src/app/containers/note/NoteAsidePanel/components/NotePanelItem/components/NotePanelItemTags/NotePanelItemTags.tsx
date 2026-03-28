@@ -13,15 +13,14 @@ const NotePanelItemTags = ({ tags }: NotePanelItemTagsProps) => {
       {visibleTags.map(tag => (
         <span
           key={tag}
-          className="text-[1.2rem] text-[var(--color-text-secondary)]">
+          className="text-[1.2rem] text-[var(--color-text-secondary)]"
+        >
           #{tag}
         </span>
       ))}
 
       {remainingCount > 0 && (
-        <span className="text-[1.2rem] text-[var(--color-text-help)]">
-          +{remainingCount}
-        </span>
+        <span className="text-[1.2rem] text-[var(--color-text-help)]">+{remainingCount}</span>
       )}
     </div>
   );

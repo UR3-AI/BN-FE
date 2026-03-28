@@ -1,5 +1,1 @@
-export type ProcessingStatus =
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
+export type ProcessingStatus = "pending" | "processing" | "completed" | "failed";

@@ -2,11 +2,7 @@ import { useEffect, useRef } from "react";
 
 import type { UseKeydownModalProps } from "./useKeydownModal.type";
 
-const useKeydownModal = ({
-  callback,
-  isShow,
-  disableAwayClick,
-}: UseKeydownModalProps) => {
+const useKeydownModal = ({ callback, isShow, disableAwayClick }: UseKeydownModalProps) => {
   const callbackRef = useRef(callback);
 
   useEffect(() => {

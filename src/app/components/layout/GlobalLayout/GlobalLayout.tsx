@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 
-import { Sidebar } from "@app/containers";
 import { useHealthCheckQuery } from "@/lib/apis/queries";
+import { Sidebar } from "@app/containers";
 
 const GlobalLayout = () => {
   useHealthCheckQuery();

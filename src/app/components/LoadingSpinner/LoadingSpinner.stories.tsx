@@ -119,7 +119,8 @@ export const AllColors: Story = {
           background: "#333",
           padding: "1.2rem",
           borderRadius: "0.8rem",
-        }}>
+        }}
+      >
         <LoadingSpinner
           size="4rem"
           color="white"

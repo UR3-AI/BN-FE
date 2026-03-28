@@ -12,9 +12,7 @@ const useTokenRefresh = () => {
   useEffect(() => {
     if (!refreshToken || !expiresAt) return;
 
-    const delay = !accessToken
-      ? 0
-      : expiresAt - Date.now() - REFRESH_BUFFER_SEC * 1000;
+    const delay = !accessToken ? 0 : expiresAt - Date.now() - REFRESH_BUFFER_SEC * 1000;
 
     const timerId = setTimeout(
       async () => {

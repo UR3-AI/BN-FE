@@ -31,7 +31,8 @@ const Button = ({
       whileTap={isDisabled ? undefined : tapStyles[variant]}
       transition={{ duration: 0.15 }}
       className={`rounded-[0.6rem] font-semibold gap-[0.8rem] inline-flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-100 ${sizeStyles[size]} ${disabled ? disabledVariantStyles[variant] : variantStyles[variant]} ${className}`}
-      {...rest}>
+      {...rest}
+    >
       {isLoading && (
         <LoadingSpinner
           size={spinnerSizes[size]}

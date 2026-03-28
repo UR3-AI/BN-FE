@@ -68,7 +68,8 @@ export const AllIcons: Story = {
         <CloseIcon />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           CloseIcon
         </span>
       </div>
@@ -86,7 +87,8 @@ export const Sizes: Story = {
         <CloseIcon size="1rem" />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           1rem
         </span>
       </div>
@@ -94,7 +96,8 @@ export const Sizes: Story = {
         <CloseIcon size="1.5rem" />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           1.5rem (기본)
         </span>
       </div>
@@ -102,7 +105,8 @@ export const Sizes: Story = {
         <CloseIcon size="2rem" />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           2rem
         </span>
       </div>
@@ -110,7 +114,8 @@ export const Sizes: Story = {
         <CloseIcon size="3rem" />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           3rem
         </span>
       </div>
@@ -131,7 +136,8 @@ export const Colors: Story = {
         />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           currentColor
         </span>
       </div>
@@ -142,7 +148,8 @@ export const Colors: Story = {
         />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           #3b82f6
         </span>
       </div>
@@ -153,7 +160,8 @@ export const Colors: Story = {
         />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           #ef4444
         </span>
       </div>
@@ -164,7 +172,8 @@ export const Colors: Story = {
         />
         <span
           className="text-gray-500"
-          style={{ fontSize: "1.2rem" }}>
+          style={{ fontSize: "1.2rem" }}
+        >
           #22c55e
         </span>
       </div>

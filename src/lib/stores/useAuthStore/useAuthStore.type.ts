@@ -6,11 +6,7 @@ export interface AuthState {
 }
 
 export interface AuthActions {
-  setTokens: (
-    accessToken: string,
-    refreshToken: string,
-    expiresIn: number,
-  ) => void;
+  setTokens: (accessToken: string, refreshToken: string, expiresIn: number) => void;
   clearTokens: () => void;
 }
 

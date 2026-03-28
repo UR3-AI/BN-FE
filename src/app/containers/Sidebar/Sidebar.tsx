@@ -19,7 +19,8 @@ const Sidebar = () => {
             variant={pathname.startsWith(path) ? "primary" : "text"}
             size="s"
             className="w-[6rem] h-[6rem] !text-[1.2rem]"
-            onClick={() => navigate(path)}>
+            onClick={() => navigate(path)}
+          >
             {label}
           </Button>
         ))}
@@ -29,7 +30,8 @@ const Sidebar = () => {
         <Button
           variant="text"
           size="s"
-          className="w-[6rem] h-[6rem] !text-[1.2rem]">
+          className="w-[6rem] h-[6rem] !text-[1.2rem]"
+        >
           User
         </Button>
       </footer>

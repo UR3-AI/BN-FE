@@ -30,7 +30,8 @@ const NotePanelItem = ({ note, onPin, onDelete }: NotePanelItemProps) => {
             e.stopPropagation();
             onDelete({ noteNumber: note_number });
           }}
-          aria-label="노트 삭제">
+          aria-label="노트 삭제"
+        >
           ✕
         </button>
       </div>

@@ -6,10 +6,7 @@ import type { UseSearchDebounceParams } from "./useSearchDebounce.type";
 
 const DEFAULT_DELAY = SECOND * 0.3;
 
-const useSearchDebounce = ({
-  value,
-  delay = DEFAULT_DELAY,
-}: UseSearchDebounceParams) => {
+const useSearchDebounce = ({ value, delay = DEFAULT_DELAY }: UseSearchDebounceParams) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {
