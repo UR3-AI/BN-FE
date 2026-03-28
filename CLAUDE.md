@@ -35,7 +35,7 @@ src/
 │   ├── hooks/         # 커스텀 훅
 │   ├── stores/        # Zustand 스토어
 │   ├── utils/         # 유틸리티 함수
-│   └── types/         # 공통 타입 정의
+│   └── types/         # 공통 타입 정의 (도메인별 폴더: auth/, note/, project/ 등)
 ├── app/           # 애플리케이션 레이어
 │   ├── components/    # UI 컴포넌트 (도메인별: layout/ 등)
 │   ├── containers/    # 비즈니스 로직 컨테이너
@@ -102,6 +102,19 @@ Icons/
 - Story는 폴더 루트에 `Icons.stories.tsx`로 전체 아이콘을 카탈로그 형태로 문서화
 - 새 아이콘 추가 시: `{IconName}/` 폴더 생성 → `{IconName}.tsx` 작성 → `index.ts`에 export 추가
 
+### Shared Types Structure (도메인별 폴더)
+
+```
+types/
+└── {domain}/
+    ├── index.ts                          # barrel export
+    └── {typeName}.type.ts                # 개별 타입 정의
+```
+
+- 여러 Hook/컴포넌트에서 재사용되는 타입은 `src/lib/types/{domain}/`에 정의
+- Hook 전용 타입(Request, Response, Params)은 Hook의 `.type.ts`에 유지
+- import 경로: `import type { NoteListItem } from "@lib/types"`
+
 ### Query/Mutation Hook Structure (도메인별 폴더)
 
 ```
@@ -110,18 +123,43 @@ queries/ 또는 mutations/
     ├── index.ts                          # barrel export
     ├── keys.ts                           # Query Key Factory (queries만)
     └── {useHookName}/
+        ├── index.ts                      # barrel export
         ├── {useHookName}.ts              # 훅 구현
         └── {useHookName}.type.ts         # 요청/응답 타입
 ```
 
-**Query Key Factory 패턴**:
+**타입 네이밍 규칙**: `Use{Action}{Domain}{Suffix}` — Query/Mutation 접미사 제외
 ```ts
-const all = ["{domain}"] as const
+// ✅ 올바른 예
+interface UseNotesParams { ... }
+interface UseNotesResponse { ... }
+interface UseCreateNoteRequest { ... }
+interface UseDeleteNoteRequest { ... }
+
+// ❌ 잘못된 예
+interface UseNotesQueryParams { ... }
+interface UseCreateNoteMutationRequest { ... }
+```
+
+**Mutation 비동기 함수 파라미터**: 원시 타입 직접 전달 금지, 반드시 Request 인터페이스 사용
+```ts
+// ✅
+const deleteNote = async ({ noteNumber }: UseDeleteNoteRequest) => { ... };
+
+// ❌
+const deleteNote = async (noteNumber: number) => { ... };
+```
+
+**Query Key Factory 패턴** (invalidation 계층 고려):
+```ts
+const all = ["{domain}"] as const;
 const domainKeys = {
-  all,
-  detail: [...all, "detail"],
-} as const
-export default domainKeys
+  all,                                              // 도메인 전체 invalidate
+  lists: [...all, "list"] as const,                 // 모든 목록 쿼리 invalidate (prefix match)
+  list: (params?: Params) => [...all, "list", params] as const,  // 특정 파라미터 쿼리
+  detail: [...all, "detail"] as const,
+} as const;
+export default domainKeys;
 ```
 
 ### Service Structure (도메인별 폴더)
