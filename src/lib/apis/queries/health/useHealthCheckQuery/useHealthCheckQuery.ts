@@ -1,3 +1,4 @@
+import { IS_DEV } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../../../axios";
@@ -14,6 +15,7 @@ const useHealthCheckQuery = () => {
   return useQuery({
     queryKey: healthKeys.check,
     queryFn: healthCheck,
+    enabled: IS_DEV,
   });
 };
 
