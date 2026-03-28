@@ -1,7 +1,15 @@
+import { Navigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 
 import { GlobalLayout } from "@app/components";
-import { HomePage, LoginPage, NotFoundPage } from "@app/pages";
+import {
+  ChatPage,
+  GraphPage,
+  LoginPage,
+  NotFoundPage,
+  NotePage,
+  TodoPage,
+} from "@app/pages";
 
 import { ProtectedRoute, PublicRoute } from "./provider";
 
@@ -12,7 +20,13 @@ export const routes: RouteObject[] = [
       {
         path: "/",
         element: <GlobalLayout />,
-        children: [{ index: true, element: <HomePage /> }],
+        children: [
+          { index: true, element: <Navigate to="/note" replace /> },
+          { path: "note", element: <NotePage /> },
+          { path: "graph", element: <GraphPage /> },
+          { path: "todo", element: <TodoPage /> },
+          { path: "chat", element: <ChatPage /> },
+        ],
       },
     ],
   },
