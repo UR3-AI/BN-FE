@@ -10,7 +10,11 @@ const GlobalLayout = () => {
     <main className="w-full h-full flex">
       <Sidebar />
 
-      <Outlet />
+      <section className="flex-1 h-full overflow-x-auto">
+        <div className="min-w-[128rem] h-full">
+          <Outlet />
+        </div>
+      </section>
     </main>
   );
 };
