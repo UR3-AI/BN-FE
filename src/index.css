@@ -5,9 +5,9 @@ html {
 }
 
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-light: #f6eaff;
-  --color-primary-dark: #2563eb;
+  --color-primary: #f59e0b;
+  --color-primary-light: #fcd34d;
+  --color-primary-dark: #d97706;
 
   --color-disabled: #e0e0e0;
 
