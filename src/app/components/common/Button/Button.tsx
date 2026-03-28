@@ -1,4 +1,4 @@
-import { LoadingSpinner } from "@app/components/LoadingSpinner";
+import { LoadingSpinner } from "@app/components";
 
 import {
   disabledVariantStyles,

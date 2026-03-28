@@ -1,4 +1,4 @@
-import { CloseIcon } from "@app/components/Icons";
+import { CloseIcon } from "@app/components";
 
 import type { ModalProps } from "./Modal.type";
 import { ModalPortal } from "./components";

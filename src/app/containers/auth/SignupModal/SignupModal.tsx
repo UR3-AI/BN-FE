@@ -1,8 +1,7 @@
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
-import { Button } from "@app/components/Button";
-import { Modal } from "@app/components/Modal";
+import { Button, Modal } from "@app/components";
 import { useRegisterMutation } from "@lib/apis/mutations";
 import { useAuthStore } from "@lib/stores";
 
