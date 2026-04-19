@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 
-import { useHealthCheckQuery } from "@shared/api-queries";
 import { useAuthStore } from "@entities/auth";
+import { useHealthCheckQuery } from "@entities/health";
 
 const PublicRoute = () => {
   useHealthCheckQuery();

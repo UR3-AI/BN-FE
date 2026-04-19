@@ -1,8 +1,9 @@
-import { NoteAsidePanel, NoteContent, NoteInfoPanel } from "@app/containers";
-import { useNoteStream } from "@lib/hooks";
-import { useNoteDetailQuery } from "@lib/apis/queries";
-import { useNoteStore } from "@lib/stores";
-import type { NoteDetail } from "@lib/types";
+import type { NoteDetail } from "@entities/note";
+import { useNoteDetailQuery, useNoteStore } from "@entities/note";
+import { useNoteStream } from "@features/note/stream";
+import { NoteAsidePanel } from "@widgets/note/aside-panel";
+import { NoteContent } from "@widgets/note/content";
+import { NoteInfoPanel } from "@widgets/note/info-panel";
 
 interface NoteWorkspaceProps {
   noteNumber: number;

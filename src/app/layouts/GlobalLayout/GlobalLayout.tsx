@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 
-import { useHealthCheckQuery } from "@shared/api-queries";
+import { useHealthCheckQuery } from "@entities/health";
 import { Sidebar } from "@widgets/sidebar";
 
 const GlobalLayout = () => {
