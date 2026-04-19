@@ -2,8 +2,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@shared/ui";
-import { useAuthStore } from "@entities/auth";
-import { useLoginMutation } from "@features/auth/sign-in";
+import { useAuthStore, useLoginMutation } from "@entities/auth";
 import { SignupModal } from "@features/auth/sign-up";
 import { useModal } from "@shared/hooks";
 

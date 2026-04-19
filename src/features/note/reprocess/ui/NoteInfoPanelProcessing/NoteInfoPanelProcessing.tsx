@@ -1,6 +1,5 @@
 import { LoadingSpinner } from "@shared/ui";
-
-import { useReprocessNoteMutation } from "../../api";
+import { useReprocessNoteMutation } from "@entities/note";
 
 import {
   PROCESSING_LABEL,

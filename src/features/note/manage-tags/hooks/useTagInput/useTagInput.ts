@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 
-import { useAddTagsMutation, useRemoveTagsMutation } from "../../api";
+import { useAddTagsMutation, useRemoveTagsMutation } from "@entities/note";
 import type { TagInputForm, UseTagInputParams } from "./useTagInput.type";
 
 const useTagInput = ({ noteNumber, tags }: UseTagInputParams) => {

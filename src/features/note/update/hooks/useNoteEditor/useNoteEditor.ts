@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { SECOND } from "@shared/constants";
+import { updateNote, useUpdateNoteMutation } from "@entities/note";
 
-import { updateNote, useUpdateNoteMutation } from "../../api";
 import type { NoteEditorForm, SaveStatus, UseNoteEditorParams } from "./useNoteEditor.type";
 
 const SAVE_DELAY = SECOND * 2.5;
